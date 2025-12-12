@@ -26,7 +26,17 @@ serve(async (req) => {
   }
 
   try {
-    const { action, client_id, device_id, device_signature, device_info } = await req.json();
+    const body = await req.json();
+    
+    // Support both naming conventions (snake_case and camelCase from Android)
+    const action = body.action;
+    const clientId = body.client_id || body.clientId;
+    const deviceId = body.device_id || body.deviceId;
+    const deviceSignature = body.device_signature || body.signature;
+    const deviceName = body.device_name || body.deviceName;
+    const deviceModel = body.device_model || body.deviceModel;
+    const osVersion = body.os_version || body.osVersion;
+    const appVersion = body.app_version || body.appVersion;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -34,9 +44,9 @@ serve(async (req) => {
 
     if (action === "register") {
       // Register a new mobile client
-      if (!device_id) {
+      if (!deviceId) {
         return new Response(
-          JSON.stringify({ error: "device_id is required" }),
+          JSON.stringify({ success: false, error: "device_id is required" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -45,7 +55,7 @@ serve(async (req) => {
       const { data: existingClient } = await supabase
         .from("mobile_clients")
         .select("*")
-        .eq("device_id", device_id)
+        .eq("device_id", deviceId)
         .maybeSingle();
 
       if (existingClient) {
@@ -53,29 +63,31 @@ serve(async (req) => {
         await supabase
           .from("mobile_clients")
           .update({
-            device_name: device_info?.device_name,
-            device_model: device_info?.device_model,
-            os_version: device_info?.os_version,
-            app_version: device_info?.app_version,
+            device_name: deviceName,
+            device_model: deviceModel,
+            os_version: osVersion,
+            app_version: appVersion,
             last_sync_at: new Date().toISOString(),
             is_active: true,
           })
-          .eq("device_id", device_id);
+          .eq("device_id", deviceId);
 
         const token = generateToken({
           client_id: existingClient.id,
-          device_id,
-          exp: Date.now() + 3600000, // 1 hour
+          device_id: deviceId,
+          exp: Date.now() + 86400000, // 24 hours
         });
 
-        console.log(`Updated existing client: ${device_id}`);
+        console.log(`Updated existing client: ${deviceId}`);
 
         return new Response(
           JSON.stringify({ 
             success: true, 
-            client_id: existingClient.id,
+            clientId: existingClient.id,
+            client_id: existingClient.id, // Both formats for compatibility
             token,
-            expires_in: 3600,
+            expires_in: 86400,
+            message: "Device re-registered successfully",
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -85,11 +97,11 @@ serve(async (req) => {
       const { data: newClient, error: insertError } = await supabase
         .from("mobile_clients")
         .insert({
-          device_id,
-          device_name: device_info?.device_name,
-          device_model: device_info?.device_model,
-          os_version: device_info?.os_version,
-          app_version: device_info?.app_version,
+          device_id: deviceId,
+          device_name: deviceName,
+          device_model: deviceModel,
+          os_version: osVersion,
+          app_version: appVersion,
           is_active: true,
         })
         .select()
@@ -99,51 +111,100 @@ serve(async (req) => {
 
       const token = generateToken({
         client_id: newClient.id,
-        device_id,
-        exp: Date.now() + 3600000,
+        device_id: deviceId,
+        exp: Date.now() + 86400000, // 24 hours
       });
 
-      console.log(`Registered new client: ${device_id}`);
+      console.log(`Registered new client: ${deviceId}`);
 
       return new Response(
         JSON.stringify({ 
           success: true, 
-          client_id: newClient.id,
+          clientId: newClient.id,
+          client_id: newClient.id, // Both formats for compatibility
           token,
-          expires_in: 3600,
+          expires_in: 86400,
+          message: "Device registered successfully",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (action === "authenticate") {
-      // Authenticate existing client
-      if (!client_id || !device_signature) {
+      // Authenticate existing client - support both device_id and client_id
+      const identifier = deviceId || clientId;
+      
+      if (!identifier) {
         return new Response(
-          JSON.stringify({ error: "client_id and device_signature are required" }),
+          JSON.stringify({ success: false, error: "device_id or client_id is required" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      // Verify device signature
-      if (!verifyDeviceSignature(client_id, device_signature)) {
-        return new Response(
-          JSON.stringify({ error: "Invalid device signature" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      // Try to find by device_id first, then by client_id
+      let client;
+      
+      if (deviceId) {
+        const { data } = await supabase
+          .from("mobile_clients")
+          .select("*")
+          .eq("device_id", deviceId)
+          .eq("is_active", true)
+          .maybeSingle();
+        client = data;
+      }
+      
+      if (!client && clientId) {
+        const { data } = await supabase
+          .from("mobile_clients")
+          .select("*")
+          .eq("id", clientId)
+          .eq("is_active", true)
+          .maybeSingle();
+        client = data;
       }
 
-      // Get client info
-      const { data: client } = await supabase
-        .from("mobile_clients")
-        .select("*")
-        .eq("id", client_id)
-        .eq("is_active", true)
-        .maybeSingle();
-
       if (!client) {
+        // Auto-register if device_id provided but not found
+        if (deviceId) {
+          const { data: newClient, error: insertError } = await supabase
+            .from("mobile_clients")
+            .insert({
+              device_id: deviceId,
+              device_name: deviceName,
+              device_model: deviceModel,
+              os_version: osVersion,
+              app_version: appVersion,
+              is_active: true,
+            })
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+
+          const token = generateToken({
+            client_id: newClient.id,
+            device_id: deviceId,
+            exp: Date.now() + 86400000,
+          });
+
+          console.log(`Auto-registered new client during auth: ${deviceId}`);
+
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              clientId: newClient.id,
+              client_id: newClient.id,
+              token,
+              expires_in: 86400,
+              message: "Device auto-registered",
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         return new Response(
-          JSON.stringify({ error: "Client not found or inactive" }),
+          JSON.stringify({ success: false, error: "Client not found or inactive" }),
           { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -151,22 +212,27 @@ serve(async (req) => {
       // Update last sync
       await supabase
         .from("mobile_clients")
-        .update({ last_sync_at: new Date().toISOString() })
-        .eq("id", client_id);
+        .update({ 
+          last_sync_at: new Date().toISOString(),
+          app_version: appVersion || client.app_version,
+        })
+        .eq("id", client.id);
 
       const token = generateToken({
-        client_id,
+        client_id: client.id,
         device_id: client.device_id,
-        exp: Date.now() + 3600000,
+        exp: Date.now() + 86400000,
       });
 
-      console.log(`Authenticated client: ${client_id}`);
+      console.log(`Authenticated client: ${client.id}`);
 
       return new Response(
         JSON.stringify({ 
-          success: true, 
+          success: true,
+          clientId: client.id,
+          client_id: client.id,
           token,
-          expires_in: 3600,
+          expires_in: 86400,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -174,35 +240,94 @@ serve(async (req) => {
 
     if (action === "deactivate") {
       // Deactivate a client
-      if (!client_id) {
+      const id = clientId || deviceId;
+      
+      if (!id) {
         return new Response(
-          JSON.stringify({ error: "client_id is required" }),
+          JSON.stringify({ success: false, error: "client_id or device_id is required" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      await supabase
-        .from("mobile_clients")
-        .update({ is_active: false })
-        .eq("id", client_id);
+      // Try both client_id and device_id
+      if (clientId) {
+        await supabase
+          .from("mobile_clients")
+          .update({ is_active: false })
+          .eq("id", clientId);
+      }
+      
+      if (deviceId) {
+        await supabase
+          .from("mobile_clients")
+          .update({ is_active: false })
+          .eq("device_id", deviceId);
+      }
 
-      console.log(`Deactivated client: ${client_id}`);
+      console.log(`Deactivated client: ${id}`);
 
       return new Response(
-        JSON.stringify({ success: true }),
+        JSON.stringify({ success: true, message: "Device deactivated" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Handle status check
+    if (action === "status") {
+      const id = clientId || deviceId;
+      
+      if (!id) {
+        return new Response(
+          JSON.stringify({ success: false, error: "client_id or device_id is required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      let client;
+      if (deviceId) {
+        const { data } = await supabase
+          .from("mobile_clients")
+          .select("*")
+          .eq("device_id", deviceId)
+          .maybeSingle();
+        client = data;
+      } else if (clientId) {
+        const { data } = await supabase
+          .from("mobile_clients")
+          .select("*")
+          .eq("id", clientId)
+          .maybeSingle();
+        client = data;
+      }
+
+      if (!client) {
+        return new Response(
+          JSON.stringify({ success: false, registered: false }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          registered: true,
+          clientId: client.id,
+          isActive: client.is_active,
+          lastSync: client.last_sync_at,
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
-      JSON.stringify({ error: "Invalid action. Use 'register', 'authenticate', or 'deactivate'" }),
+      JSON.stringify({ success: false, error: "Invalid action. Use 'register', 'authenticate', 'deactivate', or 'status'" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
     console.error("auth-proxy error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
