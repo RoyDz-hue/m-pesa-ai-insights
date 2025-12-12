@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ConnectionStatus } from "@/components/OfflineIndicator";
 import {
   Smartphone,
   LayoutDashboard,
@@ -159,6 +160,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <Smartphone className="h-4 w-4 text-primary" />
             </div>
             <span className="text-base font-bold text-foreground">MTran</span>
+          </div>
+          <div className="ml-auto">
+            <ConnectionStatus />
           </div>
         </header>
 
