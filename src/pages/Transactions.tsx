@@ -5,6 +5,7 @@ import { useTransactions } from "@/hooks/use-mpesa";
 import { TransactionTypeBadge, StatusBadge, ConfidenceBadge } from "@/components/dashboard/Badges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -18,16 +19,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Search, Filter, Eye } from "lucide-react";
+import { Loader2, Search, Filter, Eye, Download, MoreHorizontal, CheckCircle, XCircle, FileSpreadsheet } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import type { MpesaTransaction } from "@/types/mpesa";
 
 export default function Transactions() {
-  const { data: transactions, isLoading } = useTransactions(500);
+  const { data: transactions, isLoading, refetch } = useTransactions(500);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedTx, setSelectedTx] = useState<MpesaTransaction | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
   const filteredTransactions = transactions?.filter((tx) => {
     const matchesSearch =
@@ -51,19 +63,105 @@ export default function Transactions() {
     return format(new Date(timestamp), "MMM d, h:mm a");
   };
 
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredTransactions?.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredTransactions?.map((tx) => tx.id)));
+    }
+  };
+
+  const handleExport = async (format: "csv" | "excel" | "json") => {
+    setIsExporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("export-transactions", {
+        body: {
+          format,
+          filters: {
+            status: statusFilter !== "all" ? statusFilter : undefined,
+            transaction_type: typeFilter !== "all" ? typeFilter : undefined,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      // Create download
+      const blob = new Blob([typeof data === "string" ? data : JSON.stringify(data)], {
+        type: format === "json" ? "application/json" : "text/csv",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `transactions_${new Date().toISOString().split("T")[0]}.${format === "excel" ? "csv" : format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Exported ${format.toUpperCase()} successfully`);
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export transactions");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleBulkAction = async (action: "approve" | "reject") => {
+    if (selectedIds.size === 0) {
+      toast.error("No transactions selected");
+      return;
+    }
+
+    setIsBulkProcessing(true);
+    try {
+      const newStatus = action === "approve" ? "cleaned" : "rejected";
+      
+      const { error } = await supabase
+        .from("mpesa_transactions")
+        .update({ status: newStatus })
+        .in("id", Array.from(selectedIds));
+
+      if (error) throw error;
+
+      toast.success(`${selectedIds.size} transactions ${action === "approve" ? "approved" : "rejected"}`);
+      setSelectedIds(new Set());
+      refetch();
+    } catch (error) {
+      console.error("Bulk action error:", error);
+      toast.error(`Failed to ${action} transactions`);
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
   // Mobile card view for transactions
   const MobileTransactionCard = ({ tx }: { tx: MpesaTransaction }) => (
-    <div 
-      className="glass-card rounded-lg p-3 space-y-2"
-      onClick={() => setSelectedTx(tx)}
-    >
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-xs text-foreground">
-          {tx.transaction_code || "N/A"}
-        </span>
-        <TransactionTypeBadge type={tx.transaction_type} />
+    <div className="glass-card rounded-lg p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <Checkbox
+          checked={selectedIds.has(tx.id)}
+          onCheckedChange={() => toggleSelect(tx.id)}
+        />
+        <div className="flex-1 flex items-center justify-between" onClick={() => setSelectedTx(tx)}>
+          <span className="font-mono text-xs text-foreground">
+            {tx.transaction_code || "N/A"}
+          </span>
+          <TransactionTypeBadge type={tx.transaction_type} />
+        </div>
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" onClick={() => setSelectedTx(tx)}>
         <span className="font-semibold text-foreground">
           {formatAmount(tx.amount)}
         </span>
@@ -79,12 +177,71 @@ export default function Transactions() {
   return (
     <DashboardLayout>
       <div className="space-y-4 md:space-y-6">
-        <div>
-          <h1 className="text-xl md:text-3xl font-bold text-foreground">Transactions</h1>
-          <p className="text-sm md:text-base text-muted-foreground">
-            M-PESA transactions
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-xl md:text-3xl font-bold text-foreground">Transactions</h1>
+            <p className="text-sm md:text-base text-muted-foreground">
+              M-PESA transactions
+            </p>
+          </div>
+          
+          {/* Export Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={isExporting}>
+                {isExporting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleExport("csv")}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Export CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("excel")}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Export Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("json")}>
+                <Download className="mr-2 h-4 w-4" />
+                Export JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+
+        {/* Bulk Actions Bar */}
+        {selectedIds.size > 0 && (
+          <div className="glass-card rounded-xl p-3 flex items-center justify-between animate-fade-in">
+            <span className="text-sm text-muted-foreground">
+              {selectedIds.size} selected
+            </span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBulkAction("approve")}
+                disabled={isBulkProcessing}
+              >
+                <CheckCircle className="mr-2 h-4 w-4 text-status-cleaned" />
+                Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBulkAction("reject")}
+                disabled={isBulkProcessing}
+              >
+                <XCircle className="mr-2 h-4 w-4 text-destructive" />
+                Reject
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Filters - stack on mobile */}
         <div className="glass-card rounded-xl p-3 md:p-4">
@@ -148,7 +305,7 @@ export default function Transactions() {
             <>
               {/* Mobile Card View */}
               <div className="md:hidden space-y-3">
-                <ScrollArea className="h-[calc(100vh-280px)]">
+                <ScrollArea className="h-[calc(100vh-340px)]">
                   <div className="space-y-3 pr-2">
                     {filteredTransactions.map((tx) => (
                       <MobileTransactionCard key={tx.id} tx={tx} />
@@ -163,6 +320,12 @@ export default function Transactions() {
                   <table className="w-full">
                     <thead className="sticky top-0 bg-card border-b border-border z-10">
                       <tr>
+                        <th className="text-left p-4">
+                          <Checkbox
+                            checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0}
+                            onCheckedChange={toggleSelectAll}
+                          />
+                        </th>
                         <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                           Tx Code
                         </th>
@@ -193,8 +356,14 @@ export default function Transactions() {
                       {filteredTransactions.map((tx) => (
                         <tr
                           key={tx.id}
-                          className="hover:bg-muted/30 transition-colors"
+                          className={`hover:bg-muted/30 transition-colors ${selectedIds.has(tx.id) ? "bg-primary/5" : ""}`}
                         >
+                          <td className="p-4">
+                            <Checkbox
+                              checked={selectedIds.has(tx.id)}
+                              onCheckedChange={() => toggleSelect(tx.id)}
+                            />
+                          </td>
                           <td className="p-4">
                             <span className="font-mono text-sm text-foreground">
                               {tx.transaction_code || "N/A"}
