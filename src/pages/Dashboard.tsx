@@ -28,40 +28,40 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">
-            M-PESA transaction monitoring overview
+          <h1 className="text-xl md:text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-sm md:text-base text-muted-foreground">
+            M-PESA transaction monitoring
           </p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {/* Stats Grid - 2 cols on mobile, scaling up */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
           <StatCard
-            title="Today's Volume"
+            title="Today"
             value={isLoading ? "..." : formatCurrency(stats?.totalToday || 0)}
             icon={DollarSign}
             variant="success"
           />
           <StatCard
-            title="This Month"
+            title="Month"
             value={isLoading ? "..." : formatCurrency(stats?.totalThisMonth || 0)}
             icon={TrendingUp}
           />
           <StatCard
-            title="Transactions"
+            title="Count"
             value={isLoading ? "..." : stats?.transactionCount.toLocaleString() || "0"}
             icon={ArrowLeftRight}
           />
           <StatCard
-            title="Avg Amount"
+            title="Average"
             value={isLoading ? "..." : formatCurrency(stats?.avgAmount || 0)}
             icon={Activity}
           />
           <StatCard
-            title="Pending Review"
+            title="Review"
             value={isLoading ? "..." : stats?.pendingReviews || 0}
             icon={AlertTriangle}
             variant={stats?.pendingReviews ? "warning" : "default"}
@@ -74,8 +74,8 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Charts - stack on mobile */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           <div className="lg:col-span-2">
             <TransactionChart />
           </div>
@@ -84,35 +84,35 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Recent Transactions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Transactions & Status - stack on mobile */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <RecentTransactions />
-          <div className="glass-card rounded-xl p-6 animate-fade-in">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-foreground">AI Processing Status</h3>
-              <p className="text-sm text-muted-foreground">Real-time parsing performance</p>
+          <div className="glass-card rounded-xl p-4 md:p-6 animate-fade-in">
+            <div className="mb-3 md:mb-4">
+              <h3 className="text-base md:text-lg font-semibold text-foreground">AI Status</h3>
+              <p className="text-xs md:text-sm text-muted-foreground">Real-time parsing</p>
             </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="h-3 w-3 rounded-full bg-status-success animate-pulse" />
-                  <span className="text-foreground">AI Parser</span>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 md:p-4 bg-muted/30 rounded-lg">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-[hsl(var(--status-success))] animate-pulse" />
+                  <span className="text-sm md:text-base text-foreground">AI Parser</span>
                 </div>
-                <span className="text-status-success text-sm">Online</span>
+                <span className="text-[hsl(var(--status-success))] text-xs md:text-sm">Online</span>
               </div>
-              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="h-3 w-3 rounded-full bg-status-success animate-pulse" />
-                  <span className="text-foreground">Fraud Detection</span>
+              <div className="flex items-center justify-between p-3 md:p-4 bg-muted/30 rounded-lg">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-[hsl(var(--status-success))] animate-pulse" />
+                  <span className="text-sm md:text-base text-foreground">Fraud Detection</span>
                 </div>
-                <span className="text-status-success text-sm">Active</span>
+                <span className="text-[hsl(var(--status-success))] text-xs md:text-sm">Active</span>
               </div>
-              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="h-3 w-3 rounded-full bg-status-success animate-pulse" />
-                  <span className="text-foreground">Deduplication</span>
+              <div className="flex items-center justify-between p-3 md:p-4 bg-muted/30 rounded-lg">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-[hsl(var(--status-success))] animate-pulse" />
+                  <span className="text-sm md:text-base text-foreground">Deduplication</span>
                 </div>
-                <span className="text-status-success text-sm">Running</span>
+                <span className="text-[hsl(var(--status-success))] text-xs md:text-sm">Running</span>
               </div>
             </div>
           </div>

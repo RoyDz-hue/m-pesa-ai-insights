@@ -1,6 +1,4 @@
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -18,7 +16,7 @@ export function TransactionChart() {
 
   if (isLoading) {
     return (
-      <div className="glass-card rounded-xl p-6 h-80 flex items-center justify-center">
+      <div className="glass-card rounded-xl p-4 md:p-6 h-64 md:h-80 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -26,8 +24,8 @@ export function TransactionChart() {
 
   if (error || !data?.length) {
     return (
-      <div className="glass-card rounded-xl p-6 h-80 flex items-center justify-center">
-        <p className="text-muted-foreground">No transaction data available</p>
+      <div className="glass-card rounded-xl p-4 md:p-6 h-64 md:h-80 flex items-center justify-center">
+        <p className="text-muted-foreground text-sm">No data available</p>
       </div>
     );
   }
@@ -45,12 +43,12 @@ export function TransactionChart() {
   };
 
   return (
-    <div className="glass-card rounded-xl p-6 animate-fade-in">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-foreground">Transaction Volume</h3>
-        <p className="text-sm text-muted-foreground">Last 30 days</p>
+    <div className="glass-card rounded-xl p-4 md:p-6 animate-fade-in">
+      <div className="mb-3 md:mb-4">
+        <h3 className="text-base md:text-lg font-semibold text-foreground">Transaction Volume</h3>
+        <p className="text-xs md:text-sm text-muted-foreground">Last 30 days</p>
       </div>
-      <div className="h-64">
+      <div className="h-48 md:h-64">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data}>
             <defs>
@@ -64,22 +62,24 @@ export function TransactionChart() {
               dataKey="date"
               tickFormatter={formatDate}
               stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
+              fontSize={10}
               tickLine={false}
               axisLine={false}
             />
             <YAxis
               tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
               stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
+              fontSize={10}
               tickLine={false}
               axisLine={false}
+              width={35}
             />
             <Tooltip
               contentStyle={{
                 backgroundColor: "hsl(var(--card))",
                 border: "1px solid hsl(var(--border))",
                 borderRadius: "0.5rem",
+                fontSize: "12px",
               }}
               labelStyle={{ color: "hsl(var(--foreground))" }}
               formatter={(value: number) => [formatCurrency(value), "Amount"]}
