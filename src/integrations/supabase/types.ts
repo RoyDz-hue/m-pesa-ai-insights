@@ -182,6 +182,35 @@ export type Database = {
           },
         ]
       }
+      mpesa_embeddings: {
+        Row: {
+          created_at: string | null
+          embedding: string | null
+          id: string
+          mpesa_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          mpesa_id: string
+        }
+        Update: {
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          mpesa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mpesa_embeddings_mpesa_id_fkey"
+            columns: ["mpesa_id"]
+            isOneToOne: false
+            referencedRelation: "mpesa_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mpesa_transactions: {
         Row: {
           ai_metadata: Json
@@ -250,6 +279,39 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          display_name: string | null
+          id: string
+          notification_preferences: Json | null
+          phone: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          notification_preferences?: Json | null
+          phone?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          notification_preferences?: Json | null
+          phone?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       review_queue: {
         Row: {
           assigned_to: string | null
@@ -294,14 +356,54 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      match_embeddings: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          mpesa_id: string
+          similarity: number
+          transaction_code: string
+        }[]
+      }
     }
     Enums: {
+      app_role: "admin" | "moderator" | "user"
       review_priority: "low" | "normal" | "high" | "critical"
       transaction_status:
         | "pending_upload"
@@ -448,6 +550,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "moderator", "user"],
       review_priority: ["low", "normal", "high", "critical"],
       transaction_status: [
         "pending_upload",
