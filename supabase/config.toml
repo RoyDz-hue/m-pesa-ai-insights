@@ -2,3 +2,15 @@ project_id = "bonpqttgwunghfkgsiul"
 
 [functions.ai-insights]
 verify_jwt = false
+
+[functions.clean-mpesa]
+verify_jwt = false
+
+[functions.detect-fraud]
+verify_jwt = false
+
+[functions.export-transactions]
+verify_jwt = false
+
+[functions.auth-proxy]
+verify_jwt = false
