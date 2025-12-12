@@ -14,16 +14,29 @@ interface TransactionRecord {
   balance?: number;
   sender?: string;
   recipient?: string;
-  transaction_type: string;
+  transaction_type?: string;
   raw_message: string;
   transaction_timestamp: number;
 }
 
 interface CleanResult {
+  success: boolean;
   inserted: string[];
   duplicates: string[];
   errors: { record: string; error: string }[];
   pending_review: string[];
+  // For single transaction response (Android app compatibility)
+  transaction?: {
+    id: string;
+    transaction_type: string;
+    transaction_code: string | null;
+    amount: number | null;
+    balance: number | null;
+    status: string;
+    ai_metadata: object;
+  };
+  duplicate?: boolean;
+  duplicate_of?: string;
 }
 
 serve(async (req) => {
@@ -33,7 +46,29 @@ serve(async (req) => {
   }
 
   try {
-    const { records } = await req.json() as { records: TransactionRecord[] };
+    const body = await req.json();
+    
+    // Support both single transaction and batch upload
+    let records: TransactionRecord[];
+    const isSingleTransaction = !body.records && body.raw_message;
+    
+    if (isSingleTransaction) {
+      // Single transaction format from Android app
+      records = [{
+        client_id: body.client_id,
+        client_tx_id: body.client_tx_id,
+        raw_message: body.raw_message,
+        transaction_timestamp: body.transaction_timestamp,
+        transaction_code: body.transaction_code,
+        amount: body.amount,
+        balance: body.balance,
+        sender: body.sender,
+        recipient: body.recipient,
+        transaction_type: body.transaction_type,
+      }];
+    } else {
+      records = body.records;
+    }
     
     if (!records || !Array.isArray(records)) {
       return new Response(
@@ -51,6 +86,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const result: CleanResult = {
+      success: true,
       inserted: [],
       duplicates: [],
       errors: [],
@@ -233,6 +269,53 @@ serve(async (req) => {
 
     console.log(`Results: ${result.inserted.length} inserted, ${result.duplicates.length} duplicates, ${result.errors.length} errors`);
 
+    result.success = result.errors.length === 0 || result.inserted.length > 0;
+
+    // For single transaction, return simplified response for Android app
+    if (isSingleTransaction) {
+      if (result.duplicates.length > 0) {
+        return new Response(JSON.stringify({
+          success: true,
+          duplicate: true,
+          duplicate_of: result.duplicates[0],
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      if (result.inserted.length > 0) {
+        // Fetch the inserted transaction to return full details
+        const { data: txn } = await supabase
+          .from("mpesa_transactions")
+          .select("*")
+          .eq("id", result.inserted[0])
+          .single();
+        
+        return new Response(JSON.stringify({
+          success: true,
+          transaction: txn ? {
+            id: txn.id,
+            transaction_type: txn.transaction_type,
+            transaction_code: txn.transaction_code,
+            amount: txn.amount,
+            balance: txn.balance,
+            status: txn.status,
+            ai_metadata: txn.ai_metadata,
+          } : null,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: result.errors[0]?.error || "Unknown error",
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -240,7 +323,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("clean-mpesa error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
