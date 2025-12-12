@@ -3,7 +3,14 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Transactions from "./pages/Transactions";
+import Analytics from "./pages/Analytics";
+import ReviewQueue from "./pages/ReviewQueue";
+import AIInsights from "./pages/AIInsights";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -15,8 +22,13 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<AuthGuard><Dashboard /></AuthGuard>} />
+          <Route path="/transactions" element={<AuthGuard><Transactions /></AuthGuard>} />
+          <Route path="/analytics" element={<AuthGuard><Analytics /></AuthGuard>} />
+          <Route path="/review" element={<AuthGuard><ReviewQueue /></AuthGuard>} />
+          <Route path="/ai-insights" element={<AuthGuard><AIInsights /></AuthGuard>} />
+          <Route path="/settings" element={<AuthGuard><Settings /></AuthGuard>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
