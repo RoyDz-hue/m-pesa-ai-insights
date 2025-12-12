@@ -23,43 +23,42 @@ export function StatCard({
 }: StatCardProps) {
   const variantStyles = {
     default: "text-primary",
-    success: "text-status-success",
-    warning: "text-status-warning",
-    danger: "text-status-error",
+    success: "text-[hsl(var(--status-success))]",
+    warning: "text-[hsl(var(--status-warning))]",
+    danger: "text-[hsl(var(--status-error))]",
   };
 
   return (
     <div className="stat-card animate-fade-in">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-foreground">{value}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs md:text-sm font-medium text-muted-foreground truncate">{title}</p>
+          <p className="mt-1 md:mt-2 text-lg md:text-2xl lg:text-3xl font-bold text-foreground truncate">{value}</p>
           {subtitle && (
-            <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+            <p className="mt-1 text-xs md:text-sm text-muted-foreground truncate">{subtitle}</p>
           )}
           {trend && (
             <div
               className={cn(
-                "mt-2 flex items-center text-sm",
-                trend.isPositive ? "text-status-success" : "text-status-error"
+                "mt-1 md:mt-2 flex items-center text-xs md:text-sm",
+                trend.isPositive ? "text-[hsl(var(--status-success))]" : "text-[hsl(var(--status-error))]"
               )}
             >
               <span>{trend.isPositive ? "↑" : "↓"}</span>
               <span className="ml-1">{Math.abs(trend.value)}%</span>
-              <span className="ml-1 text-muted-foreground">vs last month</span>
             </div>
           )}
         </div>
         <div
           className={cn(
-            "h-12 w-12 rounded-xl flex items-center justify-center",
+            "h-9 w-9 md:h-12 md:w-12 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0",
             variant === "default" && "bg-primary/10",
-            variant === "success" && "bg-status-success/10",
-            variant === "warning" && "bg-status-warning/10",
-            variant === "danger" && "bg-status-error/10"
+            variant === "success" && "bg-[hsl(var(--status-success)/0.1)]",
+            variant === "warning" && "bg-[hsl(var(--status-warning)/0.1)]",
+            variant === "danger" && "bg-[hsl(var(--status-error)/0.1)]"
           )}
         >
-          <Icon className={cn("h-6 w-6", variantStyles[variant])} />
+          <Icon className={cn("h-4 w-4 md:h-6 md:w-6", variantStyles[variant])} />
         </div>
       </div>
     </div>
