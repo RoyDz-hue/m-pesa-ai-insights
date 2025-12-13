@@ -84,9 +84,11 @@ serve(async (req) => {
           JSON.stringify({ 
             success: true, 
             clientId: existingClient.id,
-            client_id: existingClient.id, // Both formats for compatibility
+            client_id: existingClient.id,
+            device_token: existingClient.id, // Android app expects this
             token,
             expires_in: 86400,
+            uploaded_at: new Date().toISOString(),
             message: "Device re-registered successfully",
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -121,9 +123,11 @@ serve(async (req) => {
         JSON.stringify({ 
           success: true, 
           clientId: newClient.id,
-          client_id: newClient.id, // Both formats for compatibility
+          client_id: newClient.id,
+          device_token: newClient.id, // Android app expects this
           token,
           expires_in: 86400,
+          uploaded_at: new Date().toISOString(),
           message: "Device registered successfully",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -195,8 +199,10 @@ serve(async (req) => {
               success: true, 
               clientId: newClient.id,
               client_id: newClient.id,
+              device_token: newClient.id,
               token,
               expires_in: 86400,
+              uploaded_at: new Date().toISOString(),
               message: "Device auto-registered",
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -231,8 +237,10 @@ serve(async (req) => {
           success: true,
           clientId: client.id,
           client_id: client.id,
+          device_token: client.id,
           token,
           expires_in: 86400,
+          uploaded_at: new Date().toISOString(),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
