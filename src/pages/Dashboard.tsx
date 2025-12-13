@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { TransactionChart } from "@/components/dashboard/TransactionChart";
 import { TransactionTypePieChart } from "@/components/dashboard/TransactionTypePieChart";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { useDashboardStats } from "@/hooks/use-mpesa";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DollarSign,
   TrendingUp,
@@ -11,6 +13,9 @@ import {
   AlertTriangle,
   Activity,
   Flag,
+  LayoutGrid,
+  BarChart3,
+  Clock,
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -37,86 +42,111 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Stats Grid - 2 cols on mobile, scaling up */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
-          <StatCard
-            title="Today"
-            value={isLoading ? "..." : formatCurrency(stats?.totalToday || 0)}
-            icon={DollarSign}
-            variant="success"
-          />
-          <StatCard
-            title="Month"
-            value={isLoading ? "..." : formatCurrency(stats?.totalThisMonth || 0)}
-            icon={TrendingUp}
-          />
-          <StatCard
-            title="Count"
-            value={isLoading ? "..." : stats?.transactionCount.toLocaleString() || "0"}
-            icon={ArrowLeftRight}
-          />
-          <StatCard
-            title="Average"
-            value={isLoading ? "..." : formatCurrency(stats?.avgAmount || 0)}
-            icon={Activity}
-          />
-          <StatCard
-            title="Review"
-            value={isLoading ? "..." : stats?.pendingReviews || 0}
-            icon={AlertTriangle}
-            variant={stats?.pendingReviews ? "warning" : "default"}
-          />
-          <StatCard
-            title="Flagged"
-            value={isLoading ? "..." : stats?.flaggedTransactions || 0}
-            icon={Flag}
-            variant={stats?.flaggedTransactions ? "danger" : "default"}
-          />
-        </div>
+        {/* Horizontal Tabs for Dashboard Sections */}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="w-full grid grid-cols-3 bg-secondary/50 p-1 rounded-xl">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-card rounded-lg">
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Overview</span>
+            </TabsTrigger>
+            <TabsTrigger value="charts" className="data-[state=active]:bg-card rounded-lg">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Charts</span>
+            </TabsTrigger>
+            <TabsTrigger value="recent" className="data-[state=active]:bg-card rounded-lg">
+              <Clock className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Recent</span>
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Charts - stack on mobile */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          <div className="lg:col-span-2">
-            <TransactionChart />
-          </div>
-          <div>
-            <TransactionTypePieChart />
-          </div>
-        </div>
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="mt-4 space-y-4">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+              <StatCard
+                title="Today"
+                value={isLoading ? "..." : formatCurrency(stats?.totalToday || 0)}
+                icon={DollarSign}
+                variant="success"
+              />
+              <StatCard
+                title="Month"
+                value={isLoading ? "..." : formatCurrency(stats?.totalThisMonth || 0)}
+                icon={TrendingUp}
+              />
+              <StatCard
+                title="Count"
+                value={isLoading ? "..." : stats?.transactionCount.toLocaleString() || "0"}
+                icon={ArrowLeftRight}
+              />
+              <StatCard
+                title="Average"
+                value={isLoading ? "..." : formatCurrency(stats?.avgAmount || 0)}
+                icon={Activity}
+              />
+              <StatCard
+                title="Review"
+                value={isLoading ? "..." : stats?.pendingReviews || 0}
+                icon={AlertTriangle}
+                variant={stats?.pendingReviews ? "warning" : "default"}
+              />
+              <StatCard
+                title="Flagged"
+                value={isLoading ? "..." : stats?.flaggedTransactions || 0}
+                icon={Flag}
+                variant={stats?.flaggedTransactions ? "danger" : "default"}
+              />
+            </div>
 
-        {/* Recent Transactions & Status - stack on mobile */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          <RecentTransactions />
-          <div className="glass-card rounded-xl p-4 md:p-6 animate-fade-in">
-            <div className="mb-3 md:mb-4">
-              <h3 className="text-base md:text-lg font-semibold text-foreground">AI Status</h3>
-              <p className="text-xs md:text-sm text-muted-foreground">Real-time parsing</p>
+            {/* AI Status */}
+            <div className="glass-card rounded-xl p-4 md:p-6 animate-fade-in">
+              <div className="mb-4">
+                <h3 className="text-base md:text-lg font-semibold text-foreground">System Status</h3>
+                <p className="text-xs md:text-sm text-muted-foreground">Real-time AI processing</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="h-3 w-3 rounded-full bg-[hsl(var(--status-success))] animate-pulse" />
+                    <span className="text-sm text-foreground">AI Parser</span>
+                  </div>
+                  <span className="text-[hsl(var(--status-success))] text-sm">Online</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="h-3 w-3 rounded-full bg-[hsl(var(--status-success))] animate-pulse" />
+                    <span className="text-sm text-foreground">Fraud Detection</span>
+                  </div>
+                  <span className="text-[hsl(var(--status-success))] text-sm">Active</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="h-3 w-3 rounded-full bg-[hsl(var(--status-success))] animate-pulse" />
+                    <span className="text-sm text-foreground">Deduplication</span>
+                  </div>
+                  <span className="text-[hsl(var(--status-success))] text-sm">Running</span>
+                </div>
+              </div>
             </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 md:p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-2 md:gap-3">
-                  <div className="h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-[hsl(var(--status-success))] animate-pulse" />
-                  <span className="text-sm md:text-base text-foreground">AI Parser</span>
-                </div>
-                <span className="text-[hsl(var(--status-success))] text-xs md:text-sm">Online</span>
+          </TabsContent>
+
+          {/* Charts Tab */}
+          <TabsContent value="charts" className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2">
+                <TransactionChart />
               </div>
-              <div className="flex items-center justify-between p-3 md:p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-2 md:gap-3">
-                  <div className="h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-[hsl(var(--status-success))] animate-pulse" />
-                  <span className="text-sm md:text-base text-foreground">Fraud Detection</span>
-                </div>
-                <span className="text-[hsl(var(--status-success))] text-xs md:text-sm">Active</span>
-              </div>
-              <div className="flex items-center justify-between p-3 md:p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-2 md:gap-3">
-                  <div className="h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-[hsl(var(--status-success))] animate-pulse" />
-                  <span className="text-sm md:text-base text-foreground">Deduplication</span>
-                </div>
-                <span className="text-[hsl(var(--status-success))] text-xs md:text-sm">Running</span>
+              <div>
+                <TransactionTypePieChart />
               </div>
             </div>
-          </div>
-        </div>
+          </TabsContent>
+
+          {/* Recent Tab */}
+          <TabsContent value="recent" className="mt-4">
+            <RecentTransactions />
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
