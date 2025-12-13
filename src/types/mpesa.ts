@@ -10,13 +10,12 @@ export type TransactionType =
   | 'Reversal' 
   | 'Unknown';
 
+// Updated to match new simplified database enum
 export type TransactionStatus = 
-  | 'pending_upload' 
-  | 'uploaded' 
-  | 'pending_review' 
   | 'cleaned' 
   | 'duplicate' 
-  | 'rejected';
+  | 'rejected'
+  | 'flagged';
 
 export type ReviewPriority = 'low' | 'normal' | 'high' | 'critical';
 
@@ -37,8 +36,9 @@ export interface MpesaTransaction {
   transaction_code: string | null;
   amount: number | null;
   balance: number | null;
-  sender: string | null;
-  recipient: string | null;
+  // Renamed from sender/recipient to match database
+  sender_name: string | null;
+  recipient_name: string | null;
   transaction_type: TransactionType;
   raw_message: string;
   parsed_data: Record<string, unknown> | null;
@@ -46,6 +46,10 @@ export interface MpesaTransaction {
   duplicate_of: string | null;
   status: TransactionStatus;
   transaction_timestamp: number;
+  // New columns
+  confidence_score: number | null;
+  transaction_date: string | null;
+  transaction_time: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +63,8 @@ export interface ReviewQueueItem {
   resolved_at: string | null;
   resolution: string | null;
   notes: string | null;
+  fraud_type: string | null;
+  ai_explanation: string | null;
   created_at: string;
   mpesa_transactions?: MpesaTransaction;
 }
@@ -68,7 +74,6 @@ export interface DashboardStats {
   totalThisMonth: number;
   transactionCount: number;
   avgAmount: number;
-  pendingReviews: number;
   flaggedTransactions: number;
 }
 

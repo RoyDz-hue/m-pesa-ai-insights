@@ -10,7 +10,6 @@ import {
   DollarSign,
   TrendingUp,
   ArrowLeftRight,
-  AlertTriangle,
   Activity,
   Flag,
   LayoutGrid,
@@ -61,8 +60,8 @@ export default function Dashboard() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="mt-4 space-y-4">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+            {/* Stats Grid - Updated to remove pendingReviews */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
               <StatCard
                 title="Today"
                 value={isLoading ? "..." : formatCurrency(stats?.totalToday || 0)}
@@ -83,12 +82,6 @@ export default function Dashboard() {
                 title="Average"
                 value={isLoading ? "..." : formatCurrency(stats?.avgAmount || 0)}
                 icon={Activity}
-              />
-              <StatCard
-                title="Review"
-                value={isLoading ? "..." : stats?.pendingReviews || 0}
-                icon={AlertTriangle}
-                variant={stats?.pendingReviews ? "warning" : "default"}
               />
               <StatCard
                 title="Flagged"

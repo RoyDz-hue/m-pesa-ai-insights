@@ -84,13 +84,7 @@ export function useDashboardStats() {
         .select("amount")
         .gte("transaction_timestamp", startOfMonth);
 
-      // Get pending reviews count
-      const { count: pendingReviews } = await supabase
-        .from("mpesa_transactions")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending_review");
-
-      // Get flagged transactions (low confidence or fraud flags)
+      // Get flagged transactions count (from review queue)
       const { count: flaggedCount } = await supabase
         .from("review_queue")
         .select("*", { count: "exact", head: true })
@@ -106,7 +100,6 @@ export function useDashboardStats() {
         totalThisMonth: monthTotal,
         transactionCount: totalCount,
         avgAmount,
-        pendingReviews: pendingReviews || 0,
         flaggedTransactions: flaggedCount || 0,
       };
     },

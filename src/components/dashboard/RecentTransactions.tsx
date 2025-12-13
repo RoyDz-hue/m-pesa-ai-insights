@@ -83,9 +83,9 @@ export function RecentTransactions() {
                     {formatDate(tx.transaction_timestamp)}
                   </span>
                 </div>
-                {tx.sender && (
+                {tx.sender_name && (
                   <p className="mt-2 text-sm text-muted-foreground truncate">
-                    {tx.sender}
+                    {tx.sender_name}
                   </p>
                 )}
               </div>

@@ -26,13 +26,12 @@ interface StatusBadgeProps {
   status: TransactionStatus;
 }
 
+// Updated to match new simplified status enum
 const statusStyles: Record<TransactionStatus, { bg: string; text: string; label: string }> = {
-  pending_upload: { bg: "bg-status-pending/20", text: "text-status-pending", label: "Pending Upload" },
-  uploaded: { bg: "bg-status-pending/20", text: "text-status-pending", label: "Uploaded" },
-  pending_review: { bg: "bg-status-warning/20", text: "text-status-warning", label: "Pending Review" },
   cleaned: { bg: "bg-status-success/20", text: "text-status-success", label: "Cleaned" },
   duplicate: { bg: "bg-muted", text: "text-muted-foreground", label: "Duplicate" },
   rejected: { bg: "bg-status-error/20", text: "text-status-error", label: "Rejected" },
+  flagged: { bg: "bg-status-warning/20", text: "text-status-warning", label: "Flagged" },
 };
 
 export function StatusBadge({ status }: StatusBadgeProps) {

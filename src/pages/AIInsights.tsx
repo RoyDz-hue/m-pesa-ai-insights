@@ -132,7 +132,7 @@ export default function AIInsights() {
               )}
             </div>
 
-            {/* Stats Grid */}
+            {/* Stats Grid - Updated to remove pendingReviews */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="glass-card rounded-xl p-4">
                 <p className="text-xs text-muted-foreground">Total Processed</p>
@@ -141,9 +141,9 @@ export default function AIInsights() {
                 </p>
               </div>
               <div className="glass-card rounded-xl p-4">
-                <p className="text-xs text-muted-foreground">Pending Review</p>
-                <p className="text-xl font-bold text-[hsl(var(--status-warning))]">
-                  {stats?.pendingReviews || 0}
+                <p className="text-xs text-muted-foreground">This Month</p>
+                <p className="text-xl font-bold text-foreground">
+                  Ksh {((stats?.totalThisMonth || 0) / 1000).toFixed(1)}K
                 </p>
               </div>
               <div className="glass-card rounded-xl p-4">

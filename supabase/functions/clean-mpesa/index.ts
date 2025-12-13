@@ -17,8 +17,8 @@ interface ParsedTransaction {
   transaction_code: string | null;
   amount: number | null;
   balance: number | null;
-  sender: string | null;
-  recipient: string | null;
+  sender_name: string | null;
+  recipient_name: string | null;
   transaction_type: string;
   date: string | null;
   time: string | null;
@@ -108,8 +108,8 @@ serve(async (req) => {
           transaction_code: null,
           amount: null,
           balance: null,
-          sender: null,
-          recipient: null,
+          sender_name: null,
+          recipient_name: null,
           transaction_type: "Unknown",
           date: null,
           time: null,
@@ -123,6 +123,8 @@ serve(async (req) => {
           tags: [] as string[],
           flags: [] as string[],
         };
+
+        let confidenceScore = 0.5;
 
         if (lovableApiKey) {
           try {
@@ -148,11 +150,11 @@ Return a JSON object with these fields:
   "transaction_code": "exact code from SMS like SML1234567",
   "amount": numeric value without currency symbols,
   "balance": numeric value of new balance,
-  "sender": "name or number of sender",
-  "recipient": "name or number of recipient",
+  "sender_name": "name or number of sender",
+  "recipient_name": "name or number of recipient",
   "transaction_type": "Paybill|Till|SendMoney|Withdrawal|Deposit|Airtime|BankToMpesa|MpesaToBank|Reversal|Unknown",
-  "date": "date string from SMS",
-  "time": "time string from SMS",
+  "date": "YYYY-MM-DD format",
+  "time": "HH:MM:SS format",
   "confidence": 0.0-1.0 parsing confidence,
   "tags": ["income", "expense", "business", "personal", etc],
   "flags": ["high_amount", "unusual_time", "new_recipient", etc],
@@ -184,17 +186,19 @@ Return ONLY valid JSON, no markdown or extra text.`
                     transaction_code: aiParsed.transaction_code || null,
                     amount: typeof aiParsed.amount === 'number' ? aiParsed.amount : parseFloat(aiParsed.amount) || null,
                     balance: typeof aiParsed.balance === 'number' ? aiParsed.balance : parseFloat(aiParsed.balance) || null,
-                    sender: aiParsed.sender || null,
-                    recipient: aiParsed.recipient || null,
+                    sender_name: aiParsed.sender_name || aiParsed.sender || null,
+                    recipient_name: aiParsed.recipient_name || aiParsed.recipient || null,
                     transaction_type: aiParsed.transaction_type || "Unknown",
                     date: aiParsed.date || null,
                     time: aiParsed.time || null,
                   };
 
+                  confidenceScore = aiParsed.confidence || 0.9;
+
                   aiMetadata = {
                     model: "google/gemini-2.5-flash",
                     prompt_id: "mpesa_parse_v2",
-                    confidence: aiParsed.confidence || 0.9,
+                    confidence: confidenceScore,
                     explanation: aiParsed.explanation || "AI parsed successfully",
                     tags: aiParsed.tags || [],
                     flags: aiParsed.flags || [],
@@ -227,7 +231,7 @@ Return ONLY valid JSON, no markdown or extra text.`
         if (parsed.transaction_code) {
           const { data: existingByCode } = await supabase
             .from("mpesa_transactions")
-            .select("id, transaction_code, amount, transaction_type, status, ai_metadata, created_at, transaction_timestamp, recipient")
+            .select("id, transaction_code, amount, transaction_type, status, ai_metadata, created_at, transaction_timestamp, recipient_name")
             .eq("transaction_code", parsed.transaction_code)
             .maybeSingle();
 
@@ -247,7 +251,7 @@ Return ONLY valid JSON, no markdown or extra text.`
                   transaction_type: existingByCode.transaction_type,
                   amount: existingByCode.amount,
                   status: existingByCode.status,
-                  recipient: existingByCode.recipient,
+                  recipient_name: existingByCode.recipient_name,
                   timestamp: existingByCode.transaction_timestamp,
                   uploaded_at: existingByCode.created_at,
                 },
@@ -296,12 +300,15 @@ Return ONLY valid JSON, no markdown or extra text.`
             transaction_code: parsed.transaction_code,
             amount: parsed.amount,
             balance: parsed.balance,
-            sender: parsed.sender,
-            recipient: parsed.recipient,
+            sender_name: parsed.sender_name,
+            recipient_name: parsed.recipient_name,
             transaction_type: parsed.transaction_type,
             raw_message: record.raw_message,
             transaction_timestamp: record.transaction_timestamp,
             ai_metadata: aiMetadata,
+            confidence_score: confidenceScore,
+            transaction_date: parsed.date,
+            transaction_time: parsed.time,
             parsed_data: {
               date: parsed.date,
               time: parsed.time,
@@ -320,10 +327,10 @@ Return ONLY valid JSON, no markdown or extra text.`
           transaction_type: inserted.transaction_type,
           amount: inserted.amount,
           balance: inserted.balance,
-          recipient: inserted.recipient,
-          sender: inserted.sender,
+          recipient_name: inserted.recipient_name,
+          sender_name: inserted.sender_name,
           status: inserted.status,
-          confidence: aiMetadata.confidence,
+          confidence_score: confidenceScore,
           timestamp: inserted.transaction_timestamp,
           uploaded_at: inserted.created_at,
         });
@@ -334,6 +341,8 @@ Return ONLY valid JSON, no markdown or extra text.`
             mpesa_id: inserted.id,
             reason: "fraud_suspicion",
             priority: "critical",
+            fraud_type: "ai_detected",
+            ai_explanation: aiMetadata.explanation,
             notes: `Fraud flags: ${aiMetadata.flags.join(", ")}`,
           });
         }
