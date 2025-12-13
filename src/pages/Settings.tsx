@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Smartphone, Bell, Shield, Zap, User, Save, Loader2 } from "lucide-react";
+import { Bell, Shield, Zap, User, Save, Loader2 } from "lucide-react";
+import { ConnectedDevices } from "@/components/settings/ConnectedDevices";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -187,41 +188,8 @@ export default function Settings() {
             )}
           </div>
 
-          {/* Mobile Client Settings */}
-          <div className="glass-card rounded-xl p-4 md:p-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-            <div className="flex items-center gap-3 mb-4 md:mb-6">
-              <div className="h-9 w-9 md:h-10 md:w-10 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
-                <Smartphone className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground text-sm md:text-base">Mobile Client</h3>
-                <p className="text-xs md:text-sm text-muted-foreground">Android config</p>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 mr-4">
-                  <Label className="text-sm">Auto-sync</Label>
-                  <p className="text-xs text-muted-foreground">Upload new transactions</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex-1 mr-4">
-                  <Label className="text-sm">Background</Label>
-                  <p className="text-xs text-muted-foreground">Process SMS in background</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex-1 mr-4">
-                  <Label className="text-sm">Notifications</Label>
-                  <p className="text-xs text-muted-foreground">Capture M-PESA notifications</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-            </div>
-          </div>
+          {/* Connected Devices */}
+          <ConnectedDevices />
 
           {/* Notification Settings */}
           <div className="glass-card rounded-xl p-4 md:p-6 animate-fade-in" style={{ animationDelay: "0.2s" }}>
