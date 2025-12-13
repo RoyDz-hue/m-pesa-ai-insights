@@ -48,40 +48,68 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const systemPrompt = `You are an AI that creates payment confirmation form schemas. 
-Given a user's description, extract:
-1. Form title
-2. Base charge price (in Ksh)
-3. Form fields (always include: name, admission_number, mpesa_code - these are mandatory)
-4. Additional custom fields if mentioned
-5. Beneficiary rules (if applicable)
-6. Tip rules (if applicable)
+    const systemPrompt = `You are an AI that derives payment confirmation form schemas STRICTLY from admin text.
 
-Return a JSON object with this exact structure:
+HARD RULES (NON-NEGOTIABLE):
+1. Do NOT assume ANY field unless EXPLICITLY mentioned in admin text
+2. Do NOT auto-add: admission number, email, phone, ID number, name - unless explicitly stated
+3. The ONLY mandatory system field is "mpesa_code" - always required, always validated
+4. All other fields must be DERIVED STRICTLY from the admin's language intent
+
+FIELD TYPE RULES:
+- Text / short answer → type: "text"
+- Number → type: "number"
+- Email → type: "email" (validate format)
+- Phone → type: "phone" (numeric, starts with 0)
+- Date → type: "date" (calendar input)
+
+INTERPRETATION LOGIC:
+- "include his name" / "your name" → add name field
+- "admission number" → add admission field
+- "pay for anyone" / "beneficiaries" → enable beneficiary logic
+- "Ksh X" / "cost is X" / "sh.X" → charge_price = X
+- Vague concepts → make field OPTIONAL, never required
+
+BENEFICIARY LOGIC (only if mentioned):
+- Extract tier amounts from text like "Ksh 50 = 1 beneficiary"
+- If "pay for anyone" mentioned without tiers, calculate: extra_amount / charge_price = max_beneficiaries
+- beneficiary_fields should ONLY contain fields explicitly mentioned for beneficiaries
+
+Return ONLY valid JSON with this structure:
 {
-  "title": "Form Title",
-  "description": "Brief description",
-  "charge_price": 20,
+  "title": "Derived form title",
+  "description": "Brief description from context",
+  "charge_price": <number>,
   "schema_json": [
-    {"name": "name", "type": "text", "label": "Full Name", "required": true},
-    {"name": "admission_number", "type": "text", "label": "Admission Number", "required": true},
+    {"name": "mpesa_code", "type": "text", "label": "M-PESA Transaction Code", "required": true}
+    // Add ONLY fields explicitly mentioned in admin text
+  ],
+  "rules_json": {
+    "beneficiary_tiers": [], // Empty if not mentioned
+    "allow_tip": false, // true only if tip/excess mentioned
+    "beneficiary_fields": [] // ONLY fields mentioned for beneficiaries
+  }
+}
+
+EXAMPLE INPUT: "Create NITA form payment form, you will only come to collect if you paid the sh.10 cost, you can as well pay for anyone and include his name"
+
+EXAMPLE OUTPUT:
+{
+  "title": "NITA Payment Confirmation",
+  "description": "Payment confirmation for NITA form collection",
+  "charge_price": 10,
+  "schema_json": [
     {"name": "mpesa_code", "type": "text", "label": "M-PESA Transaction Code", "required": true}
   ],
   "rules_json": {
-    "beneficiary_tiers": [
-      {"min_amount": 50, "max_beneficiaries": 1},
-      {"min_amount": 60, "max_beneficiaries": 2},
-      {"min_amount": 100, "max_beneficiaries": 4}
-    ],
-    "allow_tip": true,
+    "beneficiary_tiers": [],
+    "allow_tip": false,
     "beneficiary_fields": [
-      {"name": "beneficiary_name", "type": "text", "label": "Beneficiary Name", "required": true},
-      {"name": "beneficiary_admission", "type": "text", "label": "Beneficiary Admission Number", "required": true}
+      {"name": "beneficiary_name", "type": "text", "label": "Beneficiary Name", "required": true}
     ]
   }
 }
 
-If no beneficiaries are mentioned, set beneficiary_tiers to empty array.
 Always return valid JSON only, no markdown or explanations.`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {

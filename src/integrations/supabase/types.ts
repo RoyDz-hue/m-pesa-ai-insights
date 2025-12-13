@@ -63,38 +63,41 @@ export type Database = {
       }
       form_submissions: {
         Row: {
-          admission_number: string
+          admission_number: string | null
           amount_paid: number
           beneficiaries_json: Json | null
+          form_data: Json | null
           form_id: string
           id: string
           mpesa_code: string
           mpesa_id: string
-          name: string
+          name: string | null
           submitted_at: string
           tip_amount: number | null
         }
         Insert: {
-          admission_number: string
+          admission_number?: string | null
           amount_paid: number
           beneficiaries_json?: Json | null
+          form_data?: Json | null
           form_id: string
           id?: string
           mpesa_code: string
           mpesa_id: string
-          name: string
+          name?: string | null
           submitted_at?: string
           tip_amount?: number | null
         }
         Update: {
-          admission_number?: string
+          admission_number?: string | null
           amount_paid?: number
           beneficiaries_json?: Json | null
+          form_data?: Json | null
           form_id?: string
           id?: string
           mpesa_code?: string
           mpesa_id?: string
-          name?: string
+          name?: string | null
           submitted_at?: string
           tip_amount?: number | null
         }
