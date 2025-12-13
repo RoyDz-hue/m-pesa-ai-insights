@@ -61,6 +61,60 @@ export type Database = {
           },
         ]
       }
+      form_submissions: {
+        Row: {
+          admission_number: string
+          amount_paid: number
+          beneficiaries_json: Json | null
+          form_id: string
+          id: string
+          mpesa_code: string
+          mpesa_id: string
+          name: string
+          submitted_at: string
+          tip_amount: number | null
+        }
+        Insert: {
+          admission_number: string
+          amount_paid: number
+          beneficiaries_json?: Json | null
+          form_id: string
+          id?: string
+          mpesa_code: string
+          mpesa_id: string
+          name: string
+          submitted_at?: string
+          tip_amount?: number | null
+        }
+        Update: {
+          admission_number?: string
+          amount_paid?: number
+          beneficiaries_json?: Json | null
+          form_id?: string
+          id?: string
+          mpesa_code?: string
+          mpesa_id?: string
+          name?: string
+          submitted_at?: string
+          tip_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "public_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_mpesa_id_fkey"
+            columns: ["mpesa_id"]
+            isOneToOne: false
+            referencedRelation: "mpesa_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       labeled_dataset: {
         Row: {
           corrected_by: string
@@ -233,6 +287,7 @@ export type Database = {
           transaction_timestamp: number
           transaction_type: Database["public"]["Enums"]["transaction_type"]
           updated_at: string | null
+          used_for_form: string | null
         }
         Insert: {
           ai_metadata?: Json
@@ -255,6 +310,7 @@ export type Database = {
           transaction_timestamp: number
           transaction_type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string | null
+          used_for_form?: string | null
         }
         Update: {
           ai_metadata?: Json
@@ -277,6 +333,7 @@ export type Database = {
           transaction_timestamp?: number
           transaction_type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string | null
+          used_for_form?: string | null
         }
         Relationships: [
           {
@@ -317,6 +374,48 @@ export type Database = {
           notification_preferences?: Json | null
           phone?: string | null
           updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      public_forms: {
+        Row: {
+          charge_price: number
+          created_at: string
+          description: string | null
+          id: string
+          public_slug: string | null
+          rules_json: Json
+          schema_json: Json
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          charge_price?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          public_slug?: string | null
+          rules_json?: Json
+          schema_json?: Json
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          charge_price?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          public_slug?: string | null
+          rules_json?: Json
+          schema_json?: Json
+          status?: string
+          title?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

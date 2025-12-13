@@ -11,9 +11,9 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
 import Analytics from "./pages/Analytics";
-
 import AIInsights from "./pages/AIInsights";
 import Settings from "./pages/Settings";
+import PublicForm from "./pages/PublicForm";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +35,7 @@ const App = () => (
               <Route path="/ai-insights" element={<AuthGuard><AIInsights /></AuthGuard>} />
               <Route path="/settings" element={<AuthGuard><Settings /></AuthGuard>} />
               <Route path="/review" element={<AuthGuard><Transactions /></AuthGuard>} />
+              <Route path="/form/:slug" element={<PublicForm />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
