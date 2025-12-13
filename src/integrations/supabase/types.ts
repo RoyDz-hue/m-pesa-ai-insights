@@ -218,15 +218,18 @@ export type Database = {
           balance: number | null
           client_id: string
           client_tx_id: string
+          confidence_score: number | null
           created_at: string | null
           duplicate_of: string | null
           id: string
           parsed_data: Json | null
           raw_message: string
-          recipient: string | null
-          sender: string | null
+          recipient_name: string | null
+          sender_name: string | null
           status: Database["public"]["Enums"]["transaction_status"] | null
           transaction_code: string | null
+          transaction_date: string | null
+          transaction_time: string | null
           transaction_timestamp: number
           transaction_type: Database["public"]["Enums"]["transaction_type"]
           updated_at: string | null
@@ -237,15 +240,18 @@ export type Database = {
           balance?: number | null
           client_id: string
           client_tx_id: string
+          confidence_score?: number | null
           created_at?: string | null
           duplicate_of?: string | null
           id?: string
           parsed_data?: Json | null
           raw_message: string
-          recipient?: string | null
-          sender?: string | null
+          recipient_name?: string | null
+          sender_name?: string | null
           status?: Database["public"]["Enums"]["transaction_status"] | null
           transaction_code?: string | null
+          transaction_date?: string | null
+          transaction_time?: string | null
           transaction_timestamp: number
           transaction_type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string | null
@@ -256,15 +262,18 @@ export type Database = {
           balance?: number | null
           client_id?: string
           client_tx_id?: string
+          confidence_score?: number | null
           created_at?: string | null
           duplicate_of?: string | null
           id?: string
           parsed_data?: Json | null
           raw_message?: string
-          recipient?: string | null
-          sender?: string | null
+          recipient_name?: string | null
+          sender_name?: string | null
           status?: Database["public"]["Enums"]["transaction_status"] | null
           transaction_code?: string | null
+          transaction_date?: string | null
+          transaction_time?: string | null
           transaction_timestamp?: number
           transaction_type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string | null
@@ -314,8 +323,10 @@ export type Database = {
       }
       review_queue: {
         Row: {
+          ai_explanation: string | null
           assigned_to: string | null
           created_at: string | null
+          fraud_type: string | null
           id: string
           mpesa_id: string
           notes: string | null
@@ -325,8 +336,10 @@ export type Database = {
           resolved_at: string | null
         }
         Insert: {
+          ai_explanation?: string | null
           assigned_to?: string | null
           created_at?: string | null
+          fraud_type?: string | null
           id?: string
           mpesa_id: string
           notes?: string | null
@@ -336,8 +349,10 @@ export type Database = {
           resolved_at?: string | null
         }
         Update: {
+          ai_explanation?: string | null
           assigned_to?: string | null
           created_at?: string | null
+          fraud_type?: string | null
           id?: string
           mpesa_id?: string
           notes?: string | null
@@ -423,13 +438,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "moderator" | "user"
       review_priority: "low" | "normal" | "high" | "critical"
-      transaction_status:
-        | "pending_upload"
-        | "uploaded"
-        | "pending_review"
-        | "cleaned"
-        | "duplicate"
-        | "rejected"
+      transaction_status: "cleaned" | "duplicate" | "rejected" | "flagged"
       transaction_type:
         | "Paybill"
         | "Till"
@@ -570,14 +579,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "moderator", "user"],
       review_priority: ["low", "normal", "high", "critical"],
-      transaction_status: [
-        "pending_upload",
-        "uploaded",
-        "pending_review",
-        "cleaned",
-        "duplicate",
-        "rejected",
-      ],
+      transaction_status: ["cleaned", "duplicate", "rejected", "flagged"],
       transaction_type: [
         "Paybill",
         "Till",

@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Search, Filter, Eye, Download, FileSpreadsheet, Trash2 } from "lucide-react";
+import { Loader2, Search, Filter, Eye, Download, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { MpesaTransaction } from "@/types/mpesa";
@@ -44,7 +44,8 @@ export default function Transactions() {
     const matchesSearch =
       !search ||
       tx.transaction_code?.toLowerCase().includes(search.toLowerCase()) ||
-      tx.sender?.toLowerCase().includes(search.toLowerCase()) ||
+      tx.sender_name?.toLowerCase().includes(search.toLowerCase()) ||
+      tx.recipient_name?.toLowerCase().includes(search.toLowerCase()) ||
       tx.raw_message?.toLowerCase().includes(search.toLowerCase());
 
     const matchesType = typeFilter === "all" || tx.transaction_type === typeFilter;
@@ -139,7 +140,7 @@ export default function Transactions() {
         <StatusBadge status={tx.status} />
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span className="truncate max-w-[150px]">{tx.sender || tx.recipient || "—"}</span>
+        <span className="truncate max-w-[150px]">{tx.sender_name || tx.recipient_name || "—"}</span>
         <span>{formatDate(tx.transaction_timestamp)}</span>
       </div>
     </div>
@@ -238,9 +239,8 @@ export default function Transactions() {
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="uploaded">Uploaded</SelectItem>
-                  <SelectItem value="pending_review">Pending</SelectItem>
                   <SelectItem value="cleaned">Cleaned</SelectItem>
+                  <SelectItem value="flagged">Flagged</SelectItem>
                   <SelectItem value="duplicate">Duplicate</SelectItem>
                   <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
@@ -294,7 +294,7 @@ export default function Transactions() {
                           Amount
                         </th>
                         <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                          Sender
+                          Sender / Recipient
                         </th>
                         <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                           Status
@@ -334,13 +334,15 @@ export default function Transactions() {
                             {formatAmount(tx.amount)}
                           </td>
                           <td className="p-4 text-muted-foreground max-w-[200px] truncate">
-                            {tx.sender || tx.recipient || "—"}
+                            {tx.sender_name || tx.recipient_name || "—"}
                           </td>
                           <td className="p-4">
                             <StatusBadge status={tx.status} />
                           </td>
                           <td className="p-4">
-                            {tx.ai_metadata?.confidence !== undefined ? (
+                            {tx.confidence_score !== undefined && tx.confidence_score !== null ? (
+                              <ConfidenceBadge confidence={tx.confidence_score} />
+                            ) : tx.ai_metadata?.confidence !== undefined ? (
                               <ConfidenceBadge confidence={tx.ai_metadata.confidence} />
                             ) : (
                               <span className="text-muted-foreground">—</span>
@@ -403,7 +405,11 @@ export default function Transactions() {
                   </div>
                   <div>
                     <label className="text-xs md:text-sm text-muted-foreground">Sender</label>
-                    <p className="text-foreground text-sm">{selectedTx.sender || "—"}</p>
+                    <p className="text-foreground text-sm">{selectedTx.sender_name || "—"}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs md:text-sm text-muted-foreground">Recipient</label>
+                    <p className="text-foreground text-sm">{selectedTx.recipient_name || "—"}</p>
                   </div>
                   <div>
                     <label className="text-xs md:text-sm text-muted-foreground">Status</label>
@@ -411,21 +417,55 @@ export default function Transactions() {
                       <StatusBadge status={selectedTx.status} />
                     </div>
                   </div>
+                  <div>
+                    <label className="text-xs md:text-sm text-muted-foreground">Confidence</label>
+                    <div className="mt-1">
+                      {selectedTx.confidence_score !== undefined && selectedTx.confidence_score !== null ? (
+                        <ConfidenceBadge confidence={selectedTx.confidence_score} />
+                      ) : selectedTx.ai_metadata?.confidence !== undefined ? (
+                        <ConfidenceBadge confidence={selectedTx.ai_metadata.confidence} />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div>
                   <label className="text-xs md:text-sm text-muted-foreground">Raw Message</label>
-                  <p className="mt-1 p-2 md:p-3 bg-muted rounded-lg font-mono text-xs md:text-sm text-foreground break-words">
+                  <p className="mt-1 p-3 bg-muted/50 rounded-lg text-xs md:text-sm text-foreground font-mono whitespace-pre-wrap">
                     {selectedTx.raw_message}
                   </p>
                 </div>
 
-                <div>
-                  <label className="text-xs md:text-sm text-muted-foreground">AI Metadata</label>
-                  <pre className="mt-1 p-2 md:p-3 bg-muted rounded-lg font-mono text-[10px] md:text-xs text-foreground overflow-auto max-h-32 md:max-h-40">
-                    {JSON.stringify(selectedTx.ai_metadata, null, 2)}
-                  </pre>
-                </div>
+                {selectedTx.ai_metadata && (
+                  <div>
+                    <label className="text-xs md:text-sm text-muted-foreground">AI Metadata</label>
+                    <div className="mt-1 p-3 bg-muted/50 rounded-lg space-y-2">
+                      {selectedTx.ai_metadata.explanation && (
+                        <p className="text-sm text-foreground">{selectedTx.ai_metadata.explanation}</p>
+                      )}
+                      {selectedTx.ai_metadata.tags && selectedTx.ai_metadata.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {selectedTx.ai_metadata.tags.map((tag, i) => (
+                            <span key={i} className="px-2 py-0.5 bg-primary/20 text-primary rounded text-xs">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {selectedTx.ai_metadata.flags && selectedTx.ai_metadata.flags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {selectedTx.ai_metadata.flags.map((flag, i) => (
+                            <span key={i} className="px-2 py-0.5 bg-destructive/20 text-destructive rounded text-xs">
+                              {flag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>
