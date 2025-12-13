@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bell, Shield, Zap, User, Save, Loader2, FileText } from "lucide-react";
+import { Bell, Shield, Zap, User, Save, Loader2, FileText, Database } from "lucide-react";
 import { ConnectedDevices } from "@/components/settings/ConnectedDevices";
 import { FormBuilder } from "@/components/settings/FormBuilder";
+import { DataVault } from "@/components/settings/DataVault";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -132,14 +133,18 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4" />
-              Profile & Config
+              <span className="hidden sm:inline">Profile</span>
             </TabsTrigger>
             <TabsTrigger value="forms" className="gap-2">
               <FileText className="h-4 w-4" />
-              Create Forms
+              <span className="hidden sm:inline">Forms</span>
+            </TabsTrigger>
+            <TabsTrigger value="vault" className="gap-2">
+              <Database className="h-4 w-4" />
+              <span className="hidden sm:inline">Data Vault</span>
             </TabsTrigger>
           </TabsList>
 
@@ -356,6 +361,10 @@ export default function Settings() {
 
           <TabsContent value="forms" className="mt-6">
             <FormBuilder />
+          </TabsContent>
+
+          <TabsContent value="vault" className="mt-6">
+            <DataVault />
           </TabsContent>
         </Tabs>
       </div>

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { FormFieldEditor } from "./FormFieldEditor";
 import { 
   Send, 
   Bot, 
@@ -14,7 +15,6 @@ import {
   FileText, 
   Trash2, 
   Globe, 
-  Eye,
   Copy,
   ExternalLink
 } from "lucide-react";
@@ -304,6 +304,15 @@ export function FormBuilder() {
                           )}
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
+                          {form.status === "draft" && (
+                            <FormFieldEditor
+                              formId={form.id}
+                              formTitle={form.title}
+                              fields={form.schema_json}
+                              chargePrice={form.charge_price}
+                              onUpdate={fetchForms}
+                            />
+                          )}
                           {form.status === "draft" ? (
                             <Button
                               size="sm"
