@@ -3,6 +3,9 @@ project_id = "bonpqttgwunghfkgsiul"
 [functions.ai-insights]
 verify_jwt = false
 
+[functions.ai-chat]
+verify_jwt = false
+
 [functions.clean-mpesa]
 verify_jwt = false
 

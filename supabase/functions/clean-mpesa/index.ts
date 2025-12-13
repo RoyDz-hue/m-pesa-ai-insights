@@ -9,47 +9,22 @@ const corsHeaders = {
 interface TransactionRecord {
   client_id: string;
   client_tx_id: string;
-  transaction_code?: string;
-  amount?: number;
-  balance?: number;
-  sender?: string;
-  recipient?: string;
-  transaction_type?: string;
   raw_message: string;
   transaction_timestamp: number;
 }
 
-interface CleanResult {
-  success: boolean;
-  inserted: string[];
-  duplicates: string[];
-  errors: { record: string; error: string }[];
-  pending_review: string[];
-  processed?: number;
-  transactions?: object[];
-  // For single transaction response (Android app compatibility)
-  transaction?: {
-    id: string;
-    transaction_type: string;
-    transaction_code: string | null;
-    amount: number | null;
-    balance: number | null;
-    status: string;
-    ai_metadata: object;
-    uploaded_at?: string;
-    timestamp?: number;
-    recipient?: string;
-    phone?: string;
-    parsed_at?: number;
-  };
-  duplicate?: boolean;
-  duplicate_of?: string;
-  message?: string;
-  uploaded_at?: string;
+interface ParsedTransaction {
+  transaction_code: string | null;
+  amount: number | null;
+  balance: number | null;
+  sender: string | null;
+  recipient: string | null;
+  transaction_type: string;
+  date: string | null;
+  time: string | null;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -65,7 +40,6 @@ serve(async (req) => {
     const deviceToken = req.headers.get("x-device-token");
     
     if (deviceToken) {
-      // Verify token exists in mobile_clients
       const { data: client, error: tokenError } = await supabase
         .from("mobile_clients")
         .select("id, is_active")
@@ -91,29 +65,18 @@ serve(async (req) => {
 
     const body = await req.json();
     
-    // Support both single transaction and batch upload
     let records: TransactionRecord[];
     const isSingleTransaction = !body.records && body.raw_message;
-    
-    // Extract client_id from body or use device token
     const clientId = body.client_id || deviceToken;
     
     if (isSingleTransaction) {
-      // Single transaction format from Android app
       records = [{
         client_id: clientId,
         client_tx_id: body.client_tx_id,
         raw_message: body.raw_message,
         transaction_timestamp: body.transaction_timestamp,
-        transaction_code: body.transaction_code,
-        amount: body.amount,
-        balance: body.balance,
-        sender: body.sender,
-        recipient: body.recipient,
-        transaction_type: body.transaction_type,
       }];
     } else {
-      // Batch upload - add client_id to each record if not present
       records = (body.records || []).map((r: TransactionRecord) => ({
         ...r,
         client_id: r.client_id || clientId,
@@ -129,139 +92,32 @@ serve(async (req) => {
 
     console.log(`Processing ${records.length} transactions from client: ${clientId}`);
 
-    const result: CleanResult = {
+    const result = {
       success: true,
-      inserted: [],
-      duplicates: [],
-      errors: [],
-      pending_review: [],
-      transactions: [],
+      inserted: [] as string[],
+      duplicates: [] as string[],
+      errors: [] as { record: string; error: string }[],
+      transactions: [] as object[],
+      processed: 0,
     };
 
     for (const record of records) {
       try {
-        // Check for existing transaction with same client_tx_id
-        const { data: existingByTxId } = await supabase
-          .from("mpesa_transactions")
-          .select("*")
-          .eq("client_tx_id", record.client_tx_id)
-          .maybeSingle();
+        // Step 1: Parse with AI to extract transaction_code FIRST
+        let parsed: ParsedTransaction = {
+          transaction_code: null,
+          amount: null,
+          balance: null,
+          sender: null,
+          recipient: null,
+          transaction_type: "Unknown",
+          date: null,
+          time: null,
+        };
 
-        if (existingByTxId) {
-          console.log(`Duplicate by client_tx_id: ${record.client_tx_id}`);
-          result.duplicates.push(record.client_tx_id);
-          
-          // For single transaction, return 409 with existing data
-          if (isSingleTransaction) {
-            return new Response(JSON.stringify({
-              success: true,
-              message: "Transaction already exists",
-              duplicate: true,
-              duplicate_of: existingByTxId.id,
-              transaction: {
-                id: existingByTxId.id,
-                transaction_type: existingByTxId.transaction_type,
-                transaction_code: existingByTxId.transaction_code,
-                amount: existingByTxId.amount,
-                balance: existingByTxId.balance,
-                status: existingByTxId.status,
-                ai_metadata: existingByTxId.ai_metadata,
-                recipient: existingByTxId.recipient,
-                timestamp: existingByTxId.transaction_timestamp,
-                uploaded_at: existingByTxId.created_at,
-                parsed_at: Math.floor(new Date(existingByTxId.created_at).getTime() / 1000),
-              },
-            }), {
-              status: 409,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-          continue;
-        }
-
-        // Check for duplicate by raw_message + client_id
-        const { data: existingByRaw } = await supabase
-          .from("mpesa_transactions")
-          .select("*")
-          .eq("client_id", record.client_id)
-          .eq("raw_message", record.raw_message)
-          .maybeSingle();
-
-        if (existingByRaw) {
-          console.log(`Duplicate by raw_message: ${record.client_tx_id}`);
-          result.duplicates.push(record.client_tx_id);
-          
-          if (isSingleTransaction) {
-            return new Response(JSON.stringify({
-              success: true,
-              message: "Transaction already exists",
-              duplicate: true,
-              duplicate_of: existingByRaw.id,
-              transaction: {
-                id: existingByRaw.id,
-                transaction_type: existingByRaw.transaction_type,
-                transaction_code: existingByRaw.transaction_code,
-                amount: existingByRaw.amount,
-                balance: existingByRaw.balance,
-                status: existingByRaw.status,
-                ai_metadata: existingByRaw.ai_metadata,
-                recipient: existingByRaw.recipient,
-                timestamp: existingByRaw.transaction_timestamp,
-                uploaded_at: existingByRaw.created_at,
-                parsed_at: Math.floor(new Date(existingByRaw.created_at).getTime() / 1000),
-              },
-            }), {
-              status: 409,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-          continue;
-        }
-
-        // Check for duplicate transaction codes
-        if (record.transaction_code) {
-          const { data: codeMatch } = await supabase
-            .from("mpesa_transactions")
-            .select("*")
-            .eq("transaction_code", record.transaction_code)
-            .maybeSingle();
-
-          if (codeMatch) {
-            console.log(`Duplicate transaction code: ${record.transaction_code}`);
-            result.duplicates.push(record.client_tx_id);
-            
-            if (isSingleTransaction) {
-              return new Response(JSON.stringify({
-                success: true,
-                message: "Transaction already exists",
-                duplicate: true,
-                duplicate_of: codeMatch.id,
-                transaction: {
-                  id: codeMatch.id,
-                  transaction_type: codeMatch.transaction_type,
-                  transaction_code: codeMatch.transaction_code,
-                  amount: codeMatch.amount,
-                  balance: codeMatch.balance,
-                  status: codeMatch.status,
-                  ai_metadata: codeMatch.ai_metadata,
-                  recipient: codeMatch.recipient,
-                  timestamp: codeMatch.transaction_timestamp,
-                  uploaded_at: codeMatch.created_at,
-                  parsed_at: Math.floor(new Date(codeMatch.created_at).getTime() / 1000),
-                },
-              }), {
-                status: 409,
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              });
-            }
-            continue;
-          }
-        }
-
-        // Call AI for parsing and classification
         let aiMetadata = {
           model: "google/gemini-2.5-flash",
-          prompt_id: "mpesa_parse_v1",
+          prompt_id: "mpesa_parse_v2",
           confidence: 0.5,
           explanation: "Fallback parsing",
           tags: [] as string[],
@@ -283,17 +139,31 @@ serve(async (req) => {
                 messages: [
                   {
                     role: "system",
-                    content: `You are an M-PESA transaction parser. Analyze the raw message and return a JSON object with:
-                    - confidence: float 0.0-1.0 indicating parsing confidence
-                    - transaction_type: one of Paybill|Till|SendMoney|Withdrawal|Deposit|Airtime|BankToMpesa|MpesaToBank|Reversal|Unknown
-                    - tags: array of relevant tags like ["income", "business", "personal"]
-                    - flags: array of warning flags like ["high_amount", "unusual_time", "new_recipient"]
-                    - explanation: brief reason for classification
-                    Return ONLY valid JSON, no markdown.`
+                    content: `You are an M-PESA SMS parser. Extract structured data from M-PESA transaction messages.
+
+CRITICAL: Extract the transaction code EXACTLY as it appears (e.g., "SML1234567", "TGH6789012"). This is the unique identifier.
+
+Return a JSON object with these fields:
+{
+  "transaction_code": "exact code from SMS like SML1234567",
+  "amount": numeric value without currency symbols,
+  "balance": numeric value of new balance,
+  "sender": "name or number of sender",
+  "recipient": "name or number of recipient",
+  "transaction_type": "Paybill|Till|SendMoney|Withdrawal|Deposit|Airtime|BankToMpesa|MpesaToBank|Reversal|Unknown",
+  "date": "date string from SMS",
+  "time": "time string from SMS",
+  "confidence": 0.0-1.0 parsing confidence,
+  "tags": ["income", "expense", "business", "personal", etc],
+  "flags": ["high_amount", "unusual_time", "new_recipient", etc],
+  "explanation": "brief parsing explanation"
+}
+
+Return ONLY valid JSON, no markdown or extra text.`
                   },
                   {
                     role: "user",
-                    content: `Parse this M-PESA message:\n${record.raw_message}`
+                    content: record.raw_message
                   }
                 ],
               }),
@@ -308,59 +178,133 @@ serve(async (req) => {
               if (content) {
                 try {
                   const cleaned = content.replace(/```json\n?|\n?```/g, "").trim();
-                  const parsed = JSON.parse(cleaned);
+                  const aiParsed = JSON.parse(cleaned);
                   
-                  aiMetadata = {
-                    model: "google/gemini-2.5-flash",
-                    prompt_id: "mpesa_parse_v1",
-                    confidence: parsed.confidence || 0.5,
-                    explanation: parsed.explanation || "AI parsed",
-                    tags: parsed.tags || [],
-                    flags: parsed.flags || [],
+                  parsed = {
+                    transaction_code: aiParsed.transaction_code || null,
+                    amount: typeof aiParsed.amount === 'number' ? aiParsed.amount : parseFloat(aiParsed.amount) || null,
+                    balance: typeof aiParsed.balance === 'number' ? aiParsed.balance : parseFloat(aiParsed.balance) || null,
+                    sender: aiParsed.sender || null,
+                    recipient: aiParsed.recipient || null,
+                    transaction_type: aiParsed.transaction_type || "Unknown",
+                    date: aiParsed.date || null,
+                    time: aiParsed.time || null,
                   };
 
-                  // Update transaction type if AI provides one
-                  if (parsed.transaction_type && parsed.transaction_type !== "Unknown") {
-                    record.transaction_type = parsed.transaction_type;
-                  }
+                  aiMetadata = {
+                    model: "google/gemini-2.5-flash",
+                    prompt_id: "mpesa_parse_v2",
+                    confidence: aiParsed.confidence || 0.9,
+                    explanation: aiParsed.explanation || "AI parsed successfully",
+                    tags: aiParsed.tags || [],
+                    flags: aiParsed.flags || [],
+                  };
 
                   // Log AI processing
                   await supabase.from("ai_processing_logs").insert({
                     model: "google/gemini-2.5-flash",
-                    prompt_id: "mpesa_parse_v1",
+                    prompt_id: "mpesa_parse_v2",
                     input_data: { raw_message: record.raw_message },
-                    output_data: parsed,
+                    output_data: aiParsed,
                     processing_time_ms: processingTime,
                     success: true,
                   });
+
+                  console.log(`AI parsed: code=${parsed.transaction_code}, type=${parsed.transaction_type}, amount=${parsed.amount}`);
                 } catch (parseError) {
                   console.error("AI response parse error:", parseError);
                 }
               }
+            } else {
+              console.error("AI API error:", await aiResponse.text());
             }
           } catch (aiError) {
             console.error("AI processing error:", aiError);
           }
         }
 
-        // Determine status based on confidence
-        const status = aiMetadata.confidence < 0.85 ? "pending_review" : "cleaned";
+        // Step 2: Check for duplicate by TRANSACTION_CODE (primary deduplication)
+        if (parsed.transaction_code) {
+          const { data: existingByCode } = await supabase
+            .from("mpesa_transactions")
+            .select("id, transaction_code, amount, transaction_type, status, ai_metadata, created_at, transaction_timestamp, recipient")
+            .eq("transaction_code", parsed.transaction_code)
+            .maybeSingle();
 
-        // Insert transaction
+          if (existingByCode) {
+            console.log(`Duplicate by transaction_code: ${parsed.transaction_code}`);
+            result.duplicates.push(record.client_tx_id);
+            
+            if (isSingleTransaction) {
+              return new Response(JSON.stringify({
+                success: true,
+                message: "Transaction already exists",
+                duplicate: true,
+                duplicate_of: existingByCode.id,
+                transaction: {
+                  id: existingByCode.id,
+                  transaction_code: existingByCode.transaction_code,
+                  transaction_type: existingByCode.transaction_type,
+                  amount: existingByCode.amount,
+                  status: existingByCode.status,
+                  recipient: existingByCode.recipient,
+                  timestamp: existingByCode.transaction_timestamp,
+                  uploaded_at: existingByCode.created_at,
+                },
+              }), {
+                status: 409,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+            continue;
+          }
+        }
+
+        // Step 3: Secondary check by client_tx_id
+        const { data: existingByTxId } = await supabase
+          .from("mpesa_transactions")
+          .select("id")
+          .eq("client_tx_id", record.client_tx_id)
+          .maybeSingle();
+
+        if (existingByTxId) {
+          console.log(`Duplicate by client_tx_id: ${record.client_tx_id}`);
+          result.duplicates.push(record.client_tx_id);
+          if (isSingleTransaction) {
+            return new Response(JSON.stringify({
+              success: true,
+              message: "Transaction already exists",
+              duplicate: true,
+              duplicate_of: existingByTxId.id,
+            }), {
+              status: 409,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          continue;
+        }
+
+        // Step 4: Insert FULLY PROCESSED transaction (AI parsed data, not raw)
+        const status = aiMetadata.confidence >= 0.85 ? "cleaned" : "pending_review";
+
         const { data: inserted, error: insertError } = await supabase
           .from("mpesa_transactions")
           .insert({
             client_id: record.client_id,
             client_tx_id: record.client_tx_id,
-            transaction_code: record.transaction_code,
-            amount: record.amount,
-            balance: record.balance,
-            sender: record.sender,
-            recipient: record.recipient,
-            transaction_type: record.transaction_type,
+            transaction_code: parsed.transaction_code,
+            amount: parsed.amount,
+            balance: parsed.balance,
+            sender: parsed.sender,
+            recipient: parsed.recipient,
+            transaction_type: parsed.transaction_type,
             raw_message: record.raw_message,
             transaction_timestamp: record.transaction_timestamp,
             ai_metadata: aiMetadata,
+            parsed_data: {
+              date: parsed.date,
+              time: parsed.time,
+            },
             status,
           })
           .select("*")
@@ -369,31 +313,32 @@ serve(async (req) => {
         if (insertError) throw insertError;
 
         result.inserted.push(inserted.id);
-        result.transactions?.push({
+        result.transactions.push({
           id: inserted.id,
-          transaction_type: inserted.transaction_type,
           transaction_code: inserted.transaction_code,
+          transaction_type: inserted.transaction_type,
           amount: inserted.amount,
           balance: inserted.balance,
           recipient: inserted.recipient,
+          sender: inserted.sender,
+          status: inserted.status,
+          confidence: aiMetadata.confidence,
           timestamp: inserted.transaction_timestamp,
           uploaded_at: inserted.created_at,
-          parsed_at: Math.floor(new Date(inserted.created_at).getTime() / 1000),
         });
 
-        // Add to review queue if low confidence
+        // Add to review queue only if low confidence
         if (status === "pending_review") {
           await supabase.from("review_queue").insert({
             mpesa_id: inserted.id,
-            reason: "low_confidence",
+            reason: aiMetadata.confidence < 0.5 ? "very_low_confidence" : "low_confidence",
             priority: aiMetadata.confidence < 0.5 ? "high" : "normal",
             notes: aiMetadata.explanation,
           });
-          result.pending_review.push(inserted.id);
         }
 
         // Check for fraud flags
-        if (aiMetadata.flags.includes("high_amount") || aiMetadata.flags.includes("fraud_suspected")) {
+        if (aiMetadata.flags.some(f => ["high_amount", "fraud_suspected", "unusual_pattern"].includes(f))) {
           await supabase.from("review_queue").insert({
             mpesa_id: inserted.id,
             reason: "fraud_suspicion",
@@ -402,7 +347,7 @@ serve(async (req) => {
           });
         }
 
-        console.log(`Inserted: ${inserted.id} (status: ${status})`);
+        console.log(`Inserted: ${inserted.id} | Code: ${inserted.transaction_code} | Type: ${inserted.transaction_type} | Amount: ${inserted.amount} | Status: ${status}`);
 
       } catch (error) {
         console.error(`Error processing record ${record.client_tx_id}:`, error);
@@ -419,41 +364,20 @@ serve(async (req) => {
         .from("mobile_clients")
         .update({ last_sync_at: new Date().toISOString() })
         .eq("id", clientId);
-      console.log(`Updated last_sync_at for client: ${clientId}`);
     }
 
     console.log(`Results: ${result.inserted.length} inserted, ${result.duplicates.length} duplicates, ${result.errors.length} errors`);
 
     result.success = result.errors.length === 0 || result.inserted.length > 0;
+    result.processed = records.length;
 
-    // For single transaction, return simplified response for Android app
+    // For single transaction, return simplified response
     if (isSingleTransaction) {
-      if (result.inserted.length > 0) {
-        // Fetch the inserted transaction to return full details
-        const { data: txn } = await supabase
-          .from("mpesa_transactions")
-          .select("*")
-          .eq("id", result.inserted[0])
-          .single();
-        
-        const now = new Date().toISOString();
+      if (result.inserted.length > 0 && result.transactions[0]) {
         return new Response(JSON.stringify({
           success: true,
-          transaction: txn ? {
-            id: txn.id,
-            transaction_type: txn.transaction_type,
-            transaction_code: txn.transaction_code,
-            amount: txn.amount,
-            balance: txn.balance,
-            status: txn.status,
-            ai_metadata: txn.ai_metadata,
-            recipient: txn.recipient,
-            phone: txn.recipient, // Android may expect phone field
-            timestamp: txn.transaction_timestamp,
-            uploaded_at: txn.created_at,
-            parsed_at: Math.floor(new Date(txn.created_at).getTime() / 1000),
-          } : null,
-          uploaded_at: now,
+          transaction: result.transactions[0],
+          uploaded_at: new Date().toISOString(),
         }), {
           status: 201,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -470,8 +394,6 @@ serve(async (req) => {
     }
 
     // Batch response
-    result.processed = records.length;
-    
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
