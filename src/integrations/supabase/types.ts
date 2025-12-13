@@ -323,10 +323,8 @@ export type Database = {
       }
       review_queue: {
         Row: {
-          ai_explanation: string | null
           assigned_to: string | null
           created_at: string | null
-          fraud_type: string | null
           id: string
           mpesa_id: string
           notes: string | null
@@ -336,10 +334,8 @@ export type Database = {
           resolved_at: string | null
         }
         Insert: {
-          ai_explanation?: string | null
           assigned_to?: string | null
           created_at?: string | null
-          fraud_type?: string | null
           id?: string
           mpesa_id: string
           notes?: string | null
@@ -349,10 +345,8 @@ export type Database = {
           resolved_at?: string | null
         }
         Update: {
-          ai_explanation?: string | null
           assigned_to?: string | null
           created_at?: string | null
-          fraud_type?: string | null
           id?: string
           mpesa_id?: string
           notes?: string | null
@@ -438,7 +432,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "moderator" | "user"
       review_priority: "low" | "normal" | "high" | "critical"
-      transaction_status: "cleaned" | "duplicate" | "rejected" | "flagged"
+      transaction_status: "cleaned" | "duplicate"
       transaction_type:
         | "Paybill"
         | "Till"
@@ -579,7 +573,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "moderator", "user"],
       review_priority: ["low", "normal", "high", "critical"],
-      transaction_status: ["cleaned", "duplicate", "rejected", "flagged"],
+      transaction_status: ["cleaned", "duplicate"],
       transaction_type: [
         "Paybill",
         "Till",
