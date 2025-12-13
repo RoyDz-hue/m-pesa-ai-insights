@@ -356,6 +356,24 @@ export type Database = {
           },
         ]
       }
+      user_devices: {
+        Row: {
+          client_id: string
+          linked_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          linked_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          linked_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
