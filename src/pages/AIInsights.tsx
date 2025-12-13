@@ -147,9 +147,9 @@ export default function AIInsights() {
                 </p>
               </div>
               <div className="glass-card rounded-xl p-4">
-                <p className="text-xs text-muted-foreground">Flagged</p>
-                <p className="text-xl font-bold text-destructive">
-                  {stats?.flaggedTransactions || 0}
+                <p className="text-xs text-muted-foreground">Duplicates</p>
+                <p className="text-xl font-bold text-warning">
+                  {stats?.duplicateCount || 0}
                 </p>
               </div>
               <div className="glass-card rounded-xl p-4">

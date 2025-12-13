@@ -69,8 +69,9 @@ export function useDashboardStats() {
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
       const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+      // Convert to seconds (timestamps stored in seconds, not milliseconds)
+      const startOfToday = Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000);
+      const startOfMonth = Math.floor(new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000);
 
       // Get today's transactions
       const { data: todayData } = await supabase
@@ -84,11 +85,11 @@ export function useDashboardStats() {
         .select("amount")
         .gte("transaction_timestamp", startOfMonth);
 
-      // Get flagged transactions count (from review queue)
-      const { count: flaggedCount } = await supabase
-        .from("review_queue")
+      // Count duplicates
+      const { count: duplicateCount } = await supabase
+        .from("mpesa_transactions")
         .select("*", { count: "exact", head: true })
-        .is("resolved_at", null);
+        .eq("status", "duplicate");
 
       const todayTotal = todayData?.reduce((sum, t) => sum + (Number(t.amount) || 0), 0) || 0;
       const monthTotal = monthData?.reduce((sum, t) => sum + (Number(t.amount) || 0), 0) || 0;
@@ -100,7 +101,7 @@ export function useDashboardStats() {
         totalThisMonth: monthTotal,
         transactionCount: totalCount,
         avgAmount,
-        flaggedTransactions: flaggedCount || 0,
+        duplicateCount: duplicateCount || 0,
       };
     },
   });
@@ -112,18 +113,20 @@ export function useChartData(days = 30) {
     queryFn: async () => {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
+      // Convert to seconds
+      const startTimestamp = Math.floor(startDate.getTime() / 1000);
 
       const { data, error } = await supabase
         .from("mpesa_transactions")
         .select("amount, transaction_timestamp")
-        .gte("transaction_timestamp", startDate.getTime())
+        .gte("transaction_timestamp", startTimestamp)
         .order("transaction_timestamp", { ascending: true });
 
       if (error) throw error;
 
-      // Group by date
+      // Group by date (timestamp is in seconds, multiply by 1000 for Date)
       const grouped = (data || []).reduce((acc: Record<string, { amount: number; count: number }>, tx) => {
-        const date = new Date(tx.transaction_timestamp).toISOString().split("T")[0];
+        const date = new Date(tx.transaction_timestamp * 1000).toISOString().split("T")[0];
         if (!acc[date]) {
           acc[date] = { amount: 0, count: 0 };
         }
