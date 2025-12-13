@@ -54,8 +54,7 @@ interface ValidationResult {
 }
 
 interface Beneficiary {
-  beneficiary_name: string;
-  beneficiary_admission: string;
+  [key: string]: string;
 }
 
 export default function PublicForm() {
@@ -64,9 +63,8 @@ export default function PublicForm() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Form state
-  const [name, setName] = useState("");
-  const [admissionNumber, setAdmissionNumber] = useState("");
+  // Form state - dynamic based on schema
+  const [formData, setFormData] = useState<Record<string, string>>({});
   const [mpesaCode, setMpesaCode] = useState("");
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
   const [markAsTip, setMarkAsTip] = useState(false);
@@ -143,29 +141,54 @@ export default function PublicForm() {
   };
 
   const addBeneficiary = () => {
-    if (!validation || beneficiaries.length >= (validation.maxBeneficiaries || 0)) return;
-    setBeneficiaries([...beneficiaries, { beneficiary_name: "", beneficiary_admission: "" }]);
+    if (!validation || !form || beneficiaries.length >= (validation.maxBeneficiaries || 0)) return;
+    const newBen: Beneficiary = {};
+    form.rules_json.beneficiary_fields?.forEach(f => {
+      newBen[f.name] = "";
+    });
+    setBeneficiaries([...beneficiaries, newBen]);
   };
 
   const removeBeneficiary = (index: number) => {
     setBeneficiaries(beneficiaries.filter((_, i) => i !== index));
   };
 
-  const updateBeneficiary = (index: number, field: keyof Beneficiary, value: string) => {
+  const updateBeneficiary = (index: number, field: string, value: string) => {
     const updated = [...beneficiaries];
     updated[index][field] = value;
     setBeneficiaries(updated);
+  };
+
+  const updateFormData = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Get non-mpesa fields from schema
+  const getCustomFields = () => {
+    if (!form) return [];
+    return form.schema_json.filter(f => f.name !== 'mpesa_code');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form || !validation?.valid) return;
 
+    // Validate required fields
+    const customFields = getCustomFields();
+    for (const field of customFields) {
+      if (field.required && !formData[field.name]?.trim()) {
+        toast.error(`Please fill ${field.label}`);
+        return;
+      }
+    }
+
     // Validate beneficiaries
     for (const ben of beneficiaries) {
-      if (!ben.beneficiary_name.trim() || !ben.beneficiary_admission.trim()) {
-        toast.error("Please fill all beneficiary fields");
-        return;
+      for (const field of form.rules_json.beneficiary_fields || []) {
+        if (!ben[field.name]?.trim()) {
+          toast.error(`Please fill all beneficiary fields`);
+          return;
+        }
       }
     }
 
@@ -177,8 +200,7 @@ export default function PublicForm() {
       const { data, error: submitError } = await supabase.functions.invoke("submit-public-form", {
         body: {
           formId: form.id,
-          name: name.trim(),
-          admissionNumber: admissionNumber.trim(),
+          formData,
           mpesaCode: mpesaCode.trim(),
           beneficiaries,
           tipAmount
@@ -254,31 +276,28 @@ export default function PublicForm() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Personal Details */}
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Full Name *</Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter your full name"
-                    required
-                  />
+              {/* Dynamic Fields from Schema */}
+              {getCustomFields().length > 0 && (
+                <div className="space-y-4">
+                  {getCustomFields().map((field) => (
+                    <div key={field.name}>
+                      <Label htmlFor={field.name}>
+                        {field.label} {field.required && '*'}
+                      </Label>
+                      <Input
+                        id={field.name}
+                        type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
+                        value={formData[field.name] || ''}
+                        onChange={(e) => updateFormData(field.name, e.target.value)}
+                        placeholder={`Enter ${field.label.toLowerCase()}`}
+                        required={field.required}
+                      />
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <Label htmlFor="admission">Admission Number *</Label>
-                  <Input
-                    id="admission"
-                    value={admissionNumber}
-                    onChange={(e) => setAdmissionNumber(e.target.value)}
-                    placeholder="Enter your admission number"
-                    required
-                  />
-                </div>
-              </div>
+              )}
 
-              <Separator />
+              {getCustomFields().length > 0 && <Separator />}
 
               {/* M-PESA Verification */}
               <div className="space-y-4">
@@ -375,16 +394,14 @@ export default function PublicForm() {
                         <CardContent className="pt-4">
                           <div className="flex items-start gap-2">
                             <div className="flex-1 space-y-3">
-                              <Input
-                                placeholder="Beneficiary name"
-                                value={ben.beneficiary_name}
-                                onChange={(e) => updateBeneficiary(index, "beneficiary_name", e.target.value)}
-                              />
-                              <Input
-                                placeholder="Beneficiary admission number"
-                                value={ben.beneficiary_admission}
-                                onChange={(e) => updateBeneficiary(index, "beneficiary_admission", e.target.value)}
-                              />
+                              {form.rules_json.beneficiary_fields?.map((field) => (
+                                <Input
+                                  key={field.name}
+                                  placeholder={field.label}
+                                  value={ben[field.name] || ''}
+                                  onChange={(e) => updateBeneficiary(index, field.name, e.target.value)}
+                                />
+                              ))}
                             </div>
                             <Button
                               type="button"
@@ -400,7 +417,7 @@ export default function PublicForm() {
                       </Card>
                     ))}
 
-                    {beneficiaries.length === 0 && (
+                    {beneficiaries.length === 0 && form.rules_json.beneficiary_fields && form.rules_json.beneficiary_fields.length > 0 && (
                       <p className="text-sm text-muted-foreground text-center">
                         You can add beneficiaries who will also benefit from this payment.
                       </p>
@@ -431,7 +448,7 @@ export default function PublicForm() {
                 type="submit"
                 className="w-full"
                 size="lg"
-                disabled={!validation?.valid || submitting || !name || !admissionNumber}
+                disabled={!validation?.valid || submitting}
               >
                 {submitting ? (
                   <>

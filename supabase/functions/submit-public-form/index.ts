@@ -14,18 +14,17 @@ serve(async (req) => {
   try {
     const { 
       formId, 
-      name, 
-      admissionNumber, 
+      formData,
       mpesaCode, 
       beneficiaries,
       tipAmount 
     } = await req.json();
 
     // Validate required fields
-    if (!formId || !name || !admissionNumber || !mpesaCode) {
+    if (!formId || !mpesaCode) {
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'All required fields must be provided' 
+        error: 'Form ID and M-PESA code are required' 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -135,18 +134,22 @@ serve(async (req) => {
       });
     }
 
+    // Extract name for display purposes (may or may not exist in formData)
+    const submitterName = formData?.name || formData?.full_name || 'Submitter';
+
     // Create submission
     const { data: submission, error: submitError } = await supabaseAdmin
       .from('form_submissions')
       .insert({
         form_id: formId,
         mpesa_id: transaction.id,
-        name: name.trim(),
-        admission_number: admissionNumber.trim(),
+        name: submitterName,
+        admission_number: formData?.admission_number || formData?.admission || null,
         mpesa_code: cleanCode,
         amount_paid: amount,
         beneficiaries_json: submittedBeneficiaries,
         tip_amount: tipAmount || 0,
+        form_data: formData || {},
       })
       .select()
       .single();
@@ -170,7 +173,7 @@ serve(async (req) => {
 
     // AI-generated confirmation message
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    let confirmationMessage = `Thank you ${name}! Your submission for "${form.title}" has been received.`;
+    let confirmationMessage = `Thank you! Your submission for "${form.title}" has been received.`;
 
     if (LOVABLE_API_KEY) {
       try {
@@ -189,7 +192,7 @@ serve(async (req) => {
               },
               { 
                 role: 'user', 
-                content: `Form: ${form.title}, Submitter: ${name}, Amount: Ksh ${amount}, Beneficiaries: ${submittedBeneficiaries.length}` 
+                content: `Form: ${form.title}, Amount: Ksh ${amount}, Beneficiaries: ${submittedBeneficiaries.length}` 
               }
             ],
           }),
