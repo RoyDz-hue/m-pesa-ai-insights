@@ -10,12 +10,10 @@ export type TransactionType =
   | 'Reversal' 
   | 'Unknown';
 
-// Updated to match new simplified database enum
+// Simplified status: only cleaned or duplicate (by transaction_code)
 export type TransactionStatus = 
   | 'cleaned' 
-  | 'duplicate' 
-  | 'rejected'
-  | 'flagged';
+  | 'duplicate';
 
 export type ReviewPriority = 'low' | 'normal' | 'high' | 'critical';
 
@@ -63,8 +61,6 @@ export interface ReviewQueueItem {
   resolved_at: string | null;
   resolution: string | null;
   notes: string | null;
-  fraud_type: string | null;
-  ai_explanation: string | null;
   created_at: string;
   mpesa_transactions?: MpesaTransaction;
 }

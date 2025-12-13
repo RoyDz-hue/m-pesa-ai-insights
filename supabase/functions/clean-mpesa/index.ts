@@ -335,17 +335,8 @@ Return ONLY valid JSON, no markdown or extra text.`
           uploaded_at: inserted.created_at,
         });
 
-        // Only add to review queue for FRAUD suspicion (not low confidence)
-        if (aiMetadata.flags.some(f => ["fraud_suspected", "unusual_pattern"].includes(f))) {
-          await supabase.from("review_queue").insert({
-            mpesa_id: inserted.id,
-            reason: "fraud_suspicion",
-            priority: "critical",
-            fraud_type: "ai_detected",
-            ai_explanation: aiMetadata.explanation,
-            notes: `Fraud flags: ${aiMetadata.flags.join(", ")}`,
-          });
-        }
+        // No fraud flagging needed - all transactions are cleaned
+        // Review queue only for duplicates or edge cases if needed
 
         console.log(`Inserted: ${inserted.id} | Code: ${inserted.transaction_code} | Type: ${inserted.transaction_type} | Amount: ${inserted.amount}`);
 
