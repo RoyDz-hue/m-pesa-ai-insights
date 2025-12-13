@@ -17,3 +17,15 @@ verify_jwt = false
 
 [functions.auth-proxy]
 verify_jwt = false
+
+[functions.ai-form-builder]
+verify_jwt = true
+
+[functions.publish-form]
+verify_jwt = true
+
+[functions.validate-mpesa-code]
+verify_jwt = false
+
+[functions.submit-public-form]
+verify_jwt = false
