@@ -11,7 +11,7 @@ import {
   TrendingUp,
   ArrowLeftRight,
   Activity,
-  Flag,
+  Copy,
   LayoutGrid,
   BarChart3,
   Clock,
@@ -84,10 +84,10 @@ export default function Dashboard() {
                 icon={Activity}
               />
               <StatCard
-                title="Flagged"
-                value={isLoading ? "..." : stats?.flaggedTransactions || 0}
-                icon={Flag}
-                variant={stats?.flaggedTransactions ? "danger" : "default"}
+                title="Duplicates"
+                value={isLoading ? "..." : stats?.duplicateCount || 0}
+                icon={Copy}
+                variant={stats?.duplicateCount ? "warning" : "default"}
               />
             </div>
 
