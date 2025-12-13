@@ -301,7 +301,9 @@ serve(async (req) => {
             balance: txn.balance,
             status: txn.status,
             ai_metadata: txn.ai_metadata,
+            uploaded_at: txn.created_at, // Android app expects this field
           } : null,
+          uploaded_at: txn?.created_at, // Also at top level for compatibility
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
