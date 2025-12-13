@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   ArrowLeftRight,
   BarChart3,
-  AlertTriangle,
   Settings,
   LogOut,
   Sparkles,
@@ -24,10 +23,9 @@ interface DashboardLayoutProps {
 }
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: LayoutDashboard, label: "Home", path: "/" },
   { icon: ArrowLeftRight, label: "Transactions", path: "/transactions" },
   { icon: BarChart3, label: "Analytics", path: "/analytics" },
-  { icon: AlertTriangle, label: "Review", path: "/review" },
   { icon: Sparkles, label: "AI Insights", path: "/ai-insights" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];

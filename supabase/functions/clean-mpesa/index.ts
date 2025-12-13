@@ -284,8 +284,9 @@ Return ONLY valid JSON, no markdown or extra text.`
           continue;
         }
 
-        // Step 4: Insert FULLY PROCESSED transaction (AI parsed data, not raw)
-        const status = aiMetadata.confidence >= 0.85 ? "cleaned" : "pending_review";
+        // Step 4: Insert FULLY PROCESSED transaction - NO MANUAL APPROVAL
+        // All transactions go directly to 'cleaned' status
+        // Only fraud-flagged transactions go to review queue
 
         const { data: inserted, error: insertError } = await supabase
           .from("mpesa_transactions")
@@ -305,7 +306,7 @@ Return ONLY valid JSON, no markdown or extra text.`
               date: parsed.date,
               time: parsed.time,
             },
-            status,
+            status: "cleaned", // Always cleaned - AI is trusted
           })
           .select("*")
           .single();
@@ -327,27 +328,17 @@ Return ONLY valid JSON, no markdown or extra text.`
           uploaded_at: inserted.created_at,
         });
 
-        // Add to review queue only if low confidence
-        if (status === "pending_review") {
-          await supabase.from("review_queue").insert({
-            mpesa_id: inserted.id,
-            reason: aiMetadata.confidence < 0.5 ? "very_low_confidence" : "low_confidence",
-            priority: aiMetadata.confidence < 0.5 ? "high" : "normal",
-            notes: aiMetadata.explanation,
-          });
-        }
-
-        // Check for fraud flags
-        if (aiMetadata.flags.some(f => ["high_amount", "fraud_suspected", "unusual_pattern"].includes(f))) {
+        // Only add to review queue for FRAUD suspicion (not low confidence)
+        if (aiMetadata.flags.some(f => ["fraud_suspected", "unusual_pattern"].includes(f))) {
           await supabase.from("review_queue").insert({
             mpesa_id: inserted.id,
             reason: "fraud_suspicion",
             priority: "critical",
-            notes: `Flags: ${aiMetadata.flags.join(", ")}`,
+            notes: `Fraud flags: ${aiMetadata.flags.join(", ")}`,
           });
         }
 
-        console.log(`Inserted: ${inserted.id} | Code: ${inserted.transaction_code} | Type: ${inserted.transaction_type} | Amount: ${inserted.amount} | Status: ${status}`);
+        console.log(`Inserted: ${inserted.id} | Code: ${inserted.transaction_code} | Type: ${inserted.transaction_type} | Amount: ${inserted.amount}`);
 
       } catch (error) {
         console.error(`Error processing record ${record.client_tx_id}:`, error);
