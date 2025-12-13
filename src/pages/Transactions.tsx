@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Search, Filter, Eye, Download, MoreHorizontal, CheckCircle, XCircle, FileSpreadsheet } from "lucide-react";
+import { Loader2, Search, Filter, Eye, Download, FileSpreadsheet, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { MpesaTransaction } from "@/types/mpesa";
@@ -39,7 +39,6 @@ export default function Transactions() {
   const [selectedTx, setSelectedTx] = useState<MpesaTransaction | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
-  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
   const filteredTransactions = transactions?.filter((tx) => {
     const matchesSearch =
@@ -118,34 +117,6 @@ export default function Transactions() {
     }
   };
 
-  const handleBulkAction = async (action: "approve" | "reject") => {
-    if (selectedIds.size === 0) {
-      toast.error("No transactions selected");
-      return;
-    }
-
-    setIsBulkProcessing(true);
-    try {
-      const newStatus = action === "approve" ? "cleaned" : "rejected";
-      
-      const { error } = await supabase
-        .from("mpesa_transactions")
-        .update({ status: newStatus })
-        .in("id", Array.from(selectedIds));
-
-      if (error) throw error;
-
-      toast.success(`${selectedIds.size} transactions ${action === "approve" ? "approved" : "rejected"}`);
-      setSelectedIds(new Set());
-      refetch();
-    } catch (error) {
-      console.error("Bulk action error:", error);
-      toast.error(`Failed to ${action} transactions`);
-    } finally {
-      setIsBulkProcessing(false);
-    }
-  };
-
   // Mobile card view for transactions
   const MobileTransactionCard = ({ tx }: { tx: MpesaTransaction }) => (
     <div className="glass-card rounded-lg p-3 space-y-2">
@@ -181,7 +152,7 @@ export default function Transactions() {
           <div>
             <h1 className="text-xl md:text-3xl font-bold text-foreground">Transactions</h1>
             <p className="text-sm md:text-base text-muted-foreground">
-              M-PESA transactions
+              AI-processed M-PESA transactions
             </p>
           </div>
           
@@ -214,32 +185,19 @@ export default function Transactions() {
           </DropdownMenu>
         </div>
 
-        {/* Bulk Actions Bar */}
+        {/* Selection info bar */}
         {selectedIds.size > 0 && (
           <div className="glass-card rounded-xl p-3 flex items-center justify-between animate-fade-in">
             <span className="text-sm text-muted-foreground">
-              {selectedIds.size} selected
+              {selectedIds.size} selected for export
             </span>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleBulkAction("approve")}
-                disabled={isBulkProcessing}
-              >
-                <CheckCircle className="mr-2 h-4 w-4 text-status-cleaned" />
-                Approve
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleBulkAction("reject")}
-                disabled={isBulkProcessing}
-              >
-                <XCircle className="mr-2 h-4 w-4 text-destructive" />
-                Reject
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Clear selection
+            </Button>
           </div>
         )}
 

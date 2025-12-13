@@ -11,7 +11,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
 import Analytics from "./pages/Analytics";
-import ReviewQueue from "./pages/ReviewQueue";
+
 import AIInsights from "./pages/AIInsights";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -32,9 +32,9 @@ const App = () => (
               <Route path="/" element={<AuthGuard><Dashboard /></AuthGuard>} />
               <Route path="/transactions" element={<AuthGuard><Transactions /></AuthGuard>} />
               <Route path="/analytics" element={<AuthGuard><Analytics /></AuthGuard>} />
-              <Route path="/review" element={<AuthGuard><ReviewQueue /></AuthGuard>} />
               <Route path="/ai-insights" element={<AuthGuard><AIInsights /></AuthGuard>} />
               <Route path="/settings" element={<AuthGuard><Settings /></AuthGuard>} />
+              <Route path="/review" element={<AuthGuard><Transactions /></AuthGuard>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
