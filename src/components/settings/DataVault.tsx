@@ -25,8 +25,25 @@ import {
   Search,
   Trash2,
   RefreshCw,
-  FileSpreadsheet
+  FileSpreadsheet,
+  MoreHorizontal,
+  Eye,
+  Pencil,
+  X,
+  Check
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { format } from "date-fns";
 
 interface FormOption {
@@ -59,6 +76,9 @@ export function DataVault() {
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [previewSubmission, setPreviewSubmission] = useState<Submission | null>(null);
+  const [editingRow, setEditingRow] = useState<string | null>(null);
+  const [editRowData, setEditRowData] = useState<Record<string, any>>({});
 
   useEffect(() => {
     fetchForms();
@@ -206,6 +226,24 @@ export function DataVault() {
     }
   };
 
+  const deleteSingleRow = async (id: string) => {
+    if (!confirm("Delete this submission?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("form_submissions")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast.success("Submission deleted");
+      fetchSubmissions();
+    } catch (error: any) {
+      toast.error("Failed to delete", { description: error.message });
+    }
+  };
+
   const deleteSelected = async () => {
     if (selectedRows.size === 0) return;
     
@@ -224,6 +262,53 @@ export function DataVault() {
       fetchSubmissions();
     } catch (error: any) {
       toast.error("Failed to delete", { description: error.message });
+    }
+  };
+
+  const startRowEdit = (submission: Submission) => {
+    setEditingRow(submission.id);
+    setEditRowData({
+      name: submission.name || "",
+      admission_number: submission.admission_number || "",
+      amount_paid: submission.amount_paid,
+      tip_amount: submission.tip_amount || 0,
+      ...submission.form_data
+    });
+  };
+
+  const cancelRowEdit = () => {
+    setEditingRow(null);
+    setEditRowData({});
+  };
+
+  const saveRowEdit = async () => {
+    if (!editingRow) return;
+
+    try {
+      const submission = submissions.find(s => s.id === editingRow);
+      if (!submission) return;
+
+      const { name, admission_number, amount_paid, tip_amount, ...formDataFields } = editRowData;
+      
+      const { error } = await supabase
+        .from("form_submissions")
+        .update({
+          name: name || null,
+          admission_number: admission_number || null,
+          amount_paid: parseFloat(amount_paid) || 0,
+          tip_amount: parseFloat(tip_amount) || 0,
+          form_data: { ...submission.form_data, ...formDataFields }
+        })
+        .eq("id", editingRow);
+
+      if (error) throw error;
+
+      toast.success("Updated successfully");
+      setEditingRow(null);
+      setEditRowData({});
+      fetchSubmissions();
+    } catch (error: any) {
+      toast.error("Failed to update", { description: error.message });
     }
   };
 
@@ -392,112 +477,115 @@ export function DataVault() {
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
-                  <TableHead className="min-w-[120px]">Form</TableHead>
-                  <TableHead className="min-w-[120px]">M-Pesa Code</TableHead>
-                  <TableHead className="min-w-[80px]">Amount</TableHead>
-                  <TableHead className="min-w-[120px]">Name</TableHead>
-                  <TableHead className="min-w-[120px]">Admission No.</TableHead>
-                  {Array.from(allColumns).map((col) => (
-                    <TableHead key={col} className="min-w-[100px] capitalize">
+                  <TableHead className="w-12">Actions</TableHead>
+                  <TableHead className="min-w-[100px]">Form</TableHead>
+                  <TableHead className="min-w-[110px]">M-Pesa Code</TableHead>
+                  <TableHead className="min-w-[70px]">Amount</TableHead>
+                  <TableHead className="min-w-[100px]">Name</TableHead>
+                  <TableHead className="min-w-[100px]">Adm No.</TableHead>
+                  {Array.from(allColumns).slice(0, 4).map((col) => (
+                    <TableHead key={col} className="min-w-[90px] capitalize text-xs">
                       {col.replace(/_/g, " ")}
                     </TableHead>
                   ))}
-                  <TableHead className="min-w-[60px]">Tip</TableHead>
-                  <TableHead className="min-w-[140px]">Submitted</TableHead>
+                  <TableHead className="min-w-[50px]">Tip</TableHead>
+                  <TableHead className="min-w-[90px]">Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredSubmissions.map((s) => (
-                  <TableRow key={s.id}>
+                  <TableRow key={s.id} className={editingRow === s.id ? "bg-muted/50" : ""}>
                     <TableCell>
                       <Checkbox
                         checked={selectedRows.has(s.id)}
                         onCheckedChange={() => toggleRow(s.id)}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{s.form_title}</TableCell>
-                    <TableCell className="font-mono text-xs">{s.mpesa_code}</TableCell>
                     <TableCell>
-                      {editingCell?.id === s.id && editingCell?.field === "amount_paid" ? (
+                      {editingRow === s.id ? (
+                        <div className="flex gap-1">
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-primary" onClick={saveRowEdit}>
+                            <Check className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={cancelRowEdit}>
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-7 w-7">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuItem onClick={() => setPreviewSubmission(s)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Preview
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => startRowEdit(s)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit Row
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => deleteSingleRow(s.id)} className="text-destructive">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium text-xs">{s.form_title}</TableCell>
+                    <TableCell className="font-mono text-[10px]">{s.mpesa_code}</TableCell>
+                    <TableCell>
+                      {editingRow === s.id ? (
                         <Input
                           type="number"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onBlur={saveEdit}
-                          onKeyDown={(e) => e.key === "Enter" && saveEdit()}
-                          className="h-7 w-20"
-                          autoFocus
+                          value={editRowData.amount_paid}
+                          onChange={(e) => setEditRowData(prev => ({ ...prev, amount_paid: e.target.value }))}
+                          className="h-7 w-16 text-xs"
                         />
                       ) : (
-                        <span 
-                          className="cursor-pointer hover:bg-muted px-1 rounded"
-                          onClick={() => startEditing(s.id, "amount_paid", String(s.amount_paid))}
-                        >
-                          {s.amount_paid}
-                        </span>
+                        <span className="text-sm">{s.amount_paid}</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      {editingCell?.id === s.id && editingCell?.field === "name" ? (
+                      {editingRow === s.id ? (
                         <Input
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onBlur={saveEdit}
-                          onKeyDown={(e) => e.key === "Enter" && saveEdit()}
-                          className="h-7"
-                          autoFocus
+                          value={editRowData.name}
+                          onChange={(e) => setEditRowData(prev => ({ ...prev, name: e.target.value }))}
+                          className="h-7 text-xs"
                         />
                       ) : (
-                        <span 
-                          className="cursor-pointer hover:bg-muted px-1 rounded"
-                          onClick={() => startEditing(s.id, "name", s.name || "")}
-                        >
-                          {s.name || "-"}
-                        </span>
+                        <span className="text-sm">{s.name || "-"}</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      {editingCell?.id === s.id && editingCell?.field === "admission_number" ? (
+                      {editingRow === s.id ? (
                         <Input
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onBlur={saveEdit}
-                          onKeyDown={(e) => e.key === "Enter" && saveEdit()}
-                          className="h-7"
-                          autoFocus
+                          value={editRowData.admission_number}
+                          onChange={(e) => setEditRowData(prev => ({ ...prev, admission_number: e.target.value }))}
+                          className="h-7 text-xs"
                         />
                       ) : (
-                        <span 
-                          className="cursor-pointer hover:bg-muted px-1 rounded"
-                          onClick={() => startEditing(s.id, "admission_number", s.admission_number || "")}
-                        >
-                          {s.admission_number || "-"}
-                        </span>
+                        <span className="text-sm">{s.admission_number || "-"}</span>
                       )}
                     </TableCell>
-                    {Array.from(allColumns).map((col) => (
+                    {Array.from(allColumns).slice(0, 4).map((col) => (
                       <TableCell key={col}>
-                        {editingCell?.id === s.id && editingCell?.field === col ? (
+                        {editingRow === s.id ? (
                           <Input
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={saveEdit}
-                            onKeyDown={(e) => e.key === "Enter" && saveEdit()}
-                            className="h-7"
-                            autoFocus
+                            value={editRowData[col] || ""}
+                            onChange={(e) => setEditRowData(prev => ({ ...prev, [col]: e.target.value }))}
+                            className="h-7 text-xs"
                           />
                         ) : (
-                          <span 
-                            className="cursor-pointer hover:bg-muted px-1 rounded text-sm"
-                            onClick={() => startEditing(s.id, col, String(s.form_data?.[col] || ""))}
-                          >
-                            {s.form_data?.[col] || "-"}
-                          </span>
+                          <span className="text-xs">{s.form_data?.[col] || "-"}</span>
                         )}
                       </TableCell>
                     ))}
-                    <TableCell>{s.tip_amount || 0}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-sm">{s.tip_amount || 0}</TableCell>
+                    <TableCell className="text-[10px] text-muted-foreground">
                       {format(new Date(s.submitted_at), "MMM d, HH:mm")}
                     </TableCell>
                   </TableRow>
@@ -507,6 +595,105 @@ export function DataVault() {
           </ScrollArea>
         )}
       </CardContent>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewSubmission} onOpenChange={() => setPreviewSubmission(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Submission Details
+            </DialogTitle>
+          </DialogHeader>
+          {previewSubmission && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Form</Label>
+                  <p className="font-medium">{previewSubmission.form_title}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">M-Pesa Code</Label>
+                  <p className="font-mono">{previewSubmission.mpesa_code}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Amount Paid</Label>
+                  <p className="font-medium">Ksh {previewSubmission.amount_paid}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Tip Amount</Label>
+                  <p>Ksh {previewSubmission.tip_amount || 0}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Name</Label>
+                  <p>{previewSubmission.name || "-"}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Admission No.</Label>
+                  <p>{previewSubmission.admission_number || "-"}</p>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs text-muted-foreground">Submitted At</Label>
+                  <p>{format(new Date(previewSubmission.submitted_at), "PPP 'at' p")}</p>
+                </div>
+              </div>
+
+              {/* Dynamic Form Data */}
+              {Object.keys(previewSubmission.form_data || {}).length > 0 && (
+                <div className="border-t pt-4">
+                  <Label className="text-xs text-muted-foreground mb-2 block">Additional Fields</Label>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {Object.entries(previewSubmission.form_data).map(([key, value]) => (
+                      <div key={key} className="space-y-1">
+                        <Label className="text-xs text-muted-foreground capitalize">{key.replace(/_/g, " ")}</Label>
+                        <p>{String(value) || "-"}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Beneficiaries */}
+              {previewSubmission.beneficiaries_json?.length > 0 && (
+                <div className="border-t pt-4">
+                  <Label className="text-xs text-muted-foreground mb-2 block">
+                    Beneficiaries ({previewSubmission.beneficiaries_json.length})
+                  </Label>
+                  <div className="space-y-2">
+                    {previewSubmission.beneficiaries_json.map((b: any, i: number) => (
+                      <div key={i} className="bg-muted rounded-md p-2 text-sm">
+                        <p className="font-medium">#{i + 1}: {b.name || "Unknown"}</p>
+                        {Object.entries(b).filter(([k]) => k !== "name").map(([k, v]) => (
+                          <p key={k} className="text-xs text-muted-foreground capitalize">
+                            {k.replace(/_/g, " ")}: {String(v)}
+                          </p>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => {
+                  startRowEdit(previewSubmission);
+                  setPreviewSubmission(null);
+                }}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <Button variant="destructive" className="flex-1" onClick={() => {
+                  deleteSingleRow(previewSubmission.id);
+                  setPreviewSubmission(null);
+                }}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
