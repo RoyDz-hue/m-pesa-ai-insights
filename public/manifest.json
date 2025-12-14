@@ -1,7 +1,7 @@
 {
-  "name": "MTran - M-PESA Monitor",
-  "short_name": "MTran",
-  "description": "M-PESA SMS Monitoring System",
+  "name": "MTrans - M-PESA Transaction Monitor",
+  "short_name": "MTrans",
+  "description": "M-PESA SMS Monitoring System with AI-powered transaction analysis",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0c10",
@@ -9,15 +9,15 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "/icons/mtrans-logo.jpg?v=2",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icons/mtrans-logo.jpg?v=2",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     }
   ]
