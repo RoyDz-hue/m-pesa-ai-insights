@@ -6,11 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bell, Shield, Zap, User, Save, Loader2, FileText, Database } from "lucide-react";
+import { Bell, Shield, Zap, User, Save, Loader2, FileText, Database, ShieldAlert } from "lucide-react";
 import { ConnectedDevices } from "@/components/settings/ConnectedDevices";
 import { FormBuilder } from "@/components/settings/FormBuilder";
 import { DataVault } from "@/components/settings/DataVault";
+import { DataSystemControl } from "@/components/settings/DataSystemControl";
 import { useAuth } from "@/hooks/use-auth";
+import { useAdmin } from "@/hooks/use-admin";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -31,6 +33,7 @@ interface Profile {
 
 export default function Settings() {
   const { user } = useAuth();
+  const { isAdmin } = useAdmin();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -133,7 +136,7 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className={`grid w-full lg:w-auto lg:inline-grid ${isAdmin ? 'grid-cols-4' : 'grid-cols-3'}`}>
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Profile</span>
@@ -146,6 +149,12 @@ export default function Settings() {
               <Database className="h-4 w-4" />
               <span className="hidden sm:inline">Data Vault</span>
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="dsc" className="gap-2 text-destructive">
+                <ShieldAlert className="h-4 w-4" />
+                <span className="hidden sm:inline">DSC</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="profile" className="mt-6">
@@ -366,6 +375,12 @@ export default function Settings() {
           <TabsContent value="vault" className="mt-6">
             <DataVault />
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="dsc" className="mt-6">
+              <DataSystemControl />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </DashboardLayout>
