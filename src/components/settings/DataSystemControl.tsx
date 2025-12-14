@@ -253,13 +253,16 @@ export function DataSystemControl() {
   // Delete handlers
   const deleteSingleRow = async (id: string) => {
     try {
-      const { error } = await supabase
+      console.log(`Deleting row ${id} from ${selectedTable}`);
+      const { error, count } = await supabase
         .from(selectedTable as any)
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .select();
       
       if (error) throw error;
       
+      console.log(`Delete result: count=${count}`);
       toast.success("Row deleted");
       loadTableData(selectedTable);
     } catch (error: any) {
@@ -271,13 +274,16 @@ export function DataSystemControl() {
   const deleteSelectedRows = async () => {
     try {
       const ids = Array.from(selectedRows);
-      const { error } = await supabase
+      console.log(`Deleting ${ids.length} rows from ${selectedTable}:`, ids);
+      const { error, data } = await supabase
         .from(selectedTable as any)
         .delete()
-        .in("id", ids);
+        .in("id", ids)
+        .select();
       
       if (error) throw error;
       
+      console.log(`Delete result:`, data);
       toast.success(`Deleted ${ids.length} rows`);
       setSelectedRows(new Set());
       loadTableData(selectedTable);
@@ -289,14 +295,31 @@ export function DataSystemControl() {
 
   const deleteAllTableData = async () => {
     try {
-      const { error } = await supabase
+      // Get all IDs first, then delete them
+      const { data: allRows, error: fetchError } = await supabase
+        .from(selectedTable as any)
+        .select("id");
+      
+      if (fetchError) throw fetchError;
+      
+      if (!allRows || allRows.length === 0) {
+        toast.info(`Table ${selectedTable} is already empty`);
+        return;
+      }
+      
+      const ids = allRows.map((row: any) => row.id);
+      console.log(`Deleting all ${ids.length} rows from ${selectedTable}`);
+      
+      const { error, data } = await supabase
         .from(selectedTable as any)
         .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all
+        .in("id", ids)
+        .select();
       
       if (error) throw error;
       
-      toast.success(`All data in ${selectedTable} deleted`);
+      console.log(`Cleared table result:`, data);
+      toast.success(`All data in ${selectedTable} deleted (${ids.length} rows)`);
       loadTableData(selectedTable);
     } catch (error: any) {
       console.error("Error clearing table:", error);
@@ -306,14 +329,37 @@ export function DataSystemControl() {
 
   const deleteAllSystemData = async () => {
     try {
+      let totalDeleted = 0;
+      
       for (const table of AVAILABLE_TABLES) {
-        await supabase
+        // Get all IDs for this table
+        const { data: allRows, error: fetchError } = await supabase
+          .from(table as any)
+          .select("id");
+        
+        if (fetchError) {
+          console.error(`Error fetching from ${table}:`, fetchError);
+          continue;
+        }
+        
+        if (!allRows || allRows.length === 0) continue;
+        
+        const ids = allRows.map((row: any) => row.id);
+        console.log(`Deleting ${ids.length} rows from ${table}`);
+        
+        const { error } = await supabase
           .from(table as any)
           .delete()
-          .neq("id", "00000000-0000-0000-0000-000000000000");
+          .in("id", ids);
+        
+        if (error) {
+          console.error(`Error deleting from ${table}:`, error);
+        } else {
+          totalDeleted += ids.length;
+        }
       }
       
-      toast.success("All system data deleted");
+      toast.success(`System reset complete (${totalDeleted} rows deleted)`);
       loadTableData(selectedTable);
     } catch (error: any) {
       console.error("Error clearing system:", error);
