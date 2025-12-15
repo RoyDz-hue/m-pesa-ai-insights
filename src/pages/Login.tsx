@@ -5,14 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Smartphone, Shield, Activity } from "lucide-react";
+import { Loader2, Smartphone, Shield, Activity, ArrowLeft } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,19 +21,41 @@ export default function Login() {
     setLoading(true);
 
     try {
-      if (isSignUp) {
+      if (isForgotPassword) {
+        await resetPassword(email);
+        toast.success("Password reset email sent! Check your inbox.");
+        setIsForgotPassword(false);
+      } else if (isSignUp) {
         await signUp(email, password);
-        toast.success("Account created successfully!");
+        toast.success("Account created! Check your email for verification.");
       } else {
         await signIn(email, password);
         toast.success("Welcome back!");
+        navigate("/");
       }
-      navigate("/");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Authentication failed");
     } finally {
       setLoading(false);
     }
+  };
+
+  const getFormTitle = () => {
+    if (isForgotPassword) return "Reset Password";
+    if (isSignUp) return "Create Account";
+    return "Welcome Back";
+  };
+
+  const getFormDescription = () => {
+    if (isForgotPassword) return "Enter your email to receive a password reset link";
+    if (isSignUp) return "Enter your details to create an account";
+    return "Enter your credentials to access the dashboard";
+  };
+
+  const getButtonText = () => {
+    if (isForgotPassword) return "Send Reset Link";
+    if (isSignUp) return "Create Account";
+    return "Sign In";
   };
 
   return (
@@ -88,13 +111,21 @@ export default function Login() {
           </div>
 
           <div className="glass-card rounded-2xl p-8 animate-scale-in">
+            {isForgotPassword && (
+              <button
+                onClick={() => setIsForgotPassword(false)}
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to login
+              </button>
+            )}
+
             <h2 className="text-2xl font-bold text-foreground mb-2">
-              {isSignUp ? "Create Account" : "Welcome Back"}
+              {getFormTitle()}
             </h2>
             <p className="text-muted-foreground mb-6">
-              {isSignUp
-                ? "Enter your details to create an account"
-                : "Enter your credentials to access the dashboard"}
+              {getFormDescription()}
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -111,19 +142,21 @@ export default function Login() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="bg-secondary/50 border-border"
-                />
-              </div>
+              {!isForgotPassword && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="bg-secondary/50 border-border"
+                  />
+                </div>
+              )}
 
               <Button
                 type="submit"
@@ -131,19 +164,32 @@ export default function Login() {
                 disabled={loading}
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSignUp ? "Create Account" : "Sign In"}
+                {getButtonText()}
               </Button>
             </form>
 
+            {!isForgotPassword && !isSignUp && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setIsForgotPassword(true)}
+                  className="text-sm text-primary hover:text-primary/80 transition-colors"
+                >
+                  Forgot your password?
+                </button>
+              </div>
+            )}
+
             <div className="mt-6 text-center">
-              <button
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {isSignUp
-                  ? "Already have an account? Sign in"
-                  : "Don't have an account? Sign up"}
-              </button>
+              {!isForgotPassword && (
+                <button
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {isSignUp
+                    ? "Already have an account? Sign in"
+                    : "Don't have an account? Sign up"}
+                </button>
+              )}
             </div>
           </div>
         </div>
